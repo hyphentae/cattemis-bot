@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from yt_dlp.utils import DownloadError
 
 from aiogram import Bot, Dispatcher
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.types import (
     Message,
     FSInputFile,
@@ -106,6 +106,11 @@ RETRY_DELAY = 1.2
 
 ADMIN_CACHE_TTL = 60
 _admin_cache: dict[int, tuple[float, set[int]]] = {}
+_chat_locks: dict[int, asyncio.Lock] = {}
+_api_lock = asyncio.Lock()
+_last_api_call: float = 0.0
+
+
 
 PRAISE_REPLIES = [
     "Хозяин, ты меня смущаешь (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)",
@@ -130,6 +135,38 @@ PRAISE_KEYWORDS = [
     "похвалить бота",
     "/goodbot",
 ]
+
+def get_chat_lock(chat_id: int) -> asyncio.Lock:
+    if chat_id not in _chat_locks:
+        _chat_locks[chat_id] = asyncio.Lock()
+    return _chat_locks[chat_id]
+
+
+async def tg_call(func, *args, retries: int = 3, **kwargs):
+    for attempt in range(retries + 1):
+        try:
+            return await func(*args, **kwargs)
+        except TelegramRetryAfter as e:
+            if attempt >= retries:
+                raise
+            await asyncio.sleep(float(e.retry_after) + 0.5)
+
+
+async def safe_status_edit(status: Message, text: str) -> None:
+    try:
+        await tg_call(status.edit_text, text)
+    except (TelegramBadRequest, TelegramRetryAfter, Exception):
+        pass
+
+
+async def rate_limit_free_api() -> None:
+    global _last_api_call
+    async with _api_lock:
+        now = time.monotonic()
+        diff = now - _last_api_call
+        if diff < 1.1:
+            await asyncio.sleep(1.1 - diff)
+        _last_api_call = time.monotonic()
 
 
 def normalize_possible_url(url: str) -> str:
@@ -414,6 +451,7 @@ async def safe_delete_message(message: Message):
 
 
 async def download_tiktok(url: str) -> dict:
+    await rate_limit_free_api() 
     timeout = aiohttp.ClientTimeout(total=40)
     headers = {
         "User-Agent": (
@@ -757,22 +795,18 @@ async def send_local_media(message: Message, files: list[str], caption: str | No
         ext = Path(path).suffix.lower()
 
         if ext in IMAGE_EXTS:
-            await message.answer_photo(FSInputFile(path), caption=caption)
+            await tg_call(message.answer_photo, FSInputFile(path), caption=caption)
             return
 
         if ext in VIDEO_EXTS:
-            await message.answer_video(
-                FSInputFile(path),
-                caption=caption,
-                supports_streaming=True,
-            )
+            await tg_call(message.answer_video, FSInputFile(path), caption=caption, supports_streaming=True)
             return
 
         if ext in AUDIO_EXTS:
-            await message.answer_audio(FSInputFile(path), caption=caption)
+            await tg_call(message.answer_audio, FSInputFile(path), caption=caption)
             return
 
-        await message.answer_document(FSInputFile(path), caption=caption)
+        await tg_call(message.answer_document, FSInputFile(path), caption=caption)
         return
 
     album = []
@@ -790,7 +824,7 @@ async def send_local_media(message: Message, files: list[str], caption: str | No
             leftovers.append(path)
 
     if album:
-        await message.answer_media_group(media=album)
+        await tg_call(message.answer_media_group, media=album)
 
     for i, path in enumerate(leftovers):
         ext = Path(path).suffix.lower()
@@ -826,7 +860,6 @@ async def handle_link(message: Message):
         return
 
     url = allowed_urls[0]
-
     status = await message.answer("Скачиваю...")
     temp_dirs: list[str] = []
 
@@ -835,99 +868,107 @@ async def handle_link(message: Message):
             data = await with_retry(download_tiktok, url)
             title = (data.get("title") or "").strip()
 
-            images = data.get("images") or []
-            if images:
-                media = [
-                    InputMediaPhoto(
-                        media=img,
-                        caption=title[:1024] if i == 0 and title else None,
-                    )
-                    for i, img in enumerate(images[:10])
-                ]
-                await message.answer_media_group(media=media)
+            async with get_chat_lock(message.chat.id):
+                images = data.get("images") or []
+                if images:
+                    media = [
+                        InputMediaPhoto(
+                            media=img,
+                            caption=title[:1024] if i == 0 and title else None,
+                        )
+                        for i, img in enumerate(images[:10])
+                    ]
+                    await tg_call(message.answer_media_group, media=media)
+                    await safe_delete_message(status)
+                    return
+
+                video_url = data.get("hdplay") or data.get("play") or data.get("play_addr")
+                if not video_url:
+                    raise RuntimeError("TikWM не вернул ссылку на видео")
+
+                await tg_call(
+                    message.answer_video,
+                    video=video_url,
+                    caption=title[:1024] if title else None,
+                    supports_streaming=True,
+                )
                 await safe_delete_message(status)
-                return
-
-            video_url = data.get("hdplay") or data.get("play") or data.get("play_addr")
-            if not video_url:
-                raise RuntimeError("TikWM не вернул ссылку на видео")
-
-            await message.answer_video(
-                video=video_url,
-                caption=title[:1024] if title else None,
-                supports_streaming=True,
-            )
-            await safe_delete_message(status)
             return
 
         if is_instagram(url):
             result = await with_retry(download_instagram_apify, url)
             temp_dirs.append(result["temp_dir"])
-            await send_local_media(message, result["files"], result.get("caption"))
-            await safe_delete_message(status)
+            async with get_chat_lock(message.chat.id):
+                await send_local_media(message, result["files"], result.get("caption"))
+                await safe_delete_message(status)
             return
 
         if is_twitter(url):
             result = await with_retry(download_twitter_fx, url)
             temp_dirs.append(result["temp_dir"])
-            await send_local_media(message, result["files"], result.get("caption"))
-            await safe_delete_message(status)
+            async with get_chat_lock(message.chat.id):
+                await send_local_media(message, result["files"], result.get("caption"))
+                await safe_delete_message(status)
             return
 
         if is_direct_image(url):
             result = await with_retry(download_direct_image, url)
             temp_dirs.append(result["temp_dir"])
-            await send_local_media(message, result["files"], result.get("caption"))
-            await safe_delete_message(status)
+            async with get_chat_lock(message.chat.id):
+                await send_local_media(message, result["files"], result.get("caption"))
+                await safe_delete_message(status)
             return
 
         result = await with_retry(download_ytdlp, url)
         temp_dirs.append(result["temp_dir"])
-
-        await status.edit_text("Отправляю...")
-        await send_local_media(message, result["files"], result.get("caption"))
-        await safe_delete_message(status)
+        async with get_chat_lock(message.chat.id):
+            await safe_status_edit(status, "Отправляю...")
+            await send_local_media(message, result["files"], result.get("caption"))
+            await safe_delete_message(status)
 
     except aiohttp.ClientResponseError as e:
         text = str(e).lower()
         if is_tiktok(url):
-            await status.edit_text("Хозяин, TikTok не отдал ничего... Попробуй ещё раз попозже, лапочка (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)")
+            await safe_status_edit(status, "Хозяин, TikTok не отдал ничего... Попробуй ещё раз попозже, лапочка (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)")
         elif is_instagram(url):
-            await status.edit_text("Хозяин, Instagram почему-то не отдал ничего, Попробуй ещё разочек (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)")
+            await safe_status_edit(status, "Хозяин, Instagram почему-то не отдал ничего, Попробуй ещё разочек (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)")
         elif is_twitter(url):
             if "404" in text:
-                await status.edit_text("Хозяин, Twitter/X пост не найден или его уже удалили, прости пожалуйста (⁠´⁠ ⁠.⁠ ⁠.̫⁠ ⁠.⁠ ⁠`⁠)")
+                await safe_status_edit(status, "Хозяин, Twitter/X пост не найден или его уже удалили, прости пожалуйста (⁠´⁠ ⁠.⁠ ⁠.̫⁠ ⁠.⁠ ⁠`⁠)")
             else:
-                await status.edit_text("Хозяин,Twitter/X почему-то не отдал медиа. Попробуй чуть позже ^^")
+                await safe_status_edit(status, "Хозяин, Twitter/X почему-то не отдал медиа. Попробуй чуть позже ^^")
         else:
-            await status.edit_text("Упс, не получилось скачать (⁠´⁠ ⁠.⁠ ⁠.̫⁠ ⁠.⁠ ⁠`⁠) Не наказывай меня, Хозяин, но я не знаю почему")
+            await safe_status_edit(status, "Упс, не получилось скачать (⁠´⁠ ⁠.⁠ ⁠.̫⁠ ⁠.⁠ ⁠`⁠) Не наказывай меня, Хозяин, но я не знаю почему")
 
     except asyncio.TimeoutError:
-        await status.edit_text("Хозяин... сервер отвечает слишком долго... п-попробуйте ещё раз, пожалуйста... (つ﹏<。)")
+        await safe_status_edit(status, "Хозяин... сервер отвечает слишком долго... п-попробуйте ещё раз, пожалуйста... (つ﹏<。)")
 
     except DownloadError as e:
-        await status.edit_text(human_ytdlp_error(e))
+        await safe_status_edit(status, human_ytdlp_error(e))
 
     except TelegramBadRequest as e:
         text = str(e).lower()
         if "file is too big" in text or "request entity too large" in text:
-            await status.edit_text("Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
+            await safe_status_edit(status, "Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
         else:
-            await status.edit_text("Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
+            await safe_status_edit(status, "Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
+
+    except TelegramRetryAfter as e:
+        await asyncio.sleep(float(e.retry_after) + 1)
+        await safe_status_edit(status, "Хозяин... Telegram попросил меня подождать немножко, попробуй ещё разочек ^^")
 
     except Exception as e:
         print(f"Unhandled error: {e}")
         if is_instagram(url):
-            await status.edit_text(human_instagram_api_error(e))
+            await safe_status_edit(status, human_instagram_api_error(e))
         elif is_twitter(url):
-            await status.edit_text(human_twitter_error(e))
+            await safe_status_edit(status, human_twitter_error(e))
         else:
-            await status.edit_text("Хозяин... простите, пожалуйста... при обработке ссылки что-то пошло не так... TᴖT")
+            await safe_status_edit(status, "Хозяин... простите, пожалуйста... при обработке ссылки что-то пошло не так... TᴖT")
 
     finally:
         for temp_dir in temp_dirs:
             shutil.rmtree(temp_dir, ignore_errors=True)
-
 
 async def main():
     print("🐾 Бот запущен! :3")
