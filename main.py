@@ -14,6 +14,7 @@ from yt_dlp.utils import DownloadError
 
 from aiogram import Bot, Dispatcher
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
+from aiogram.filters import Command
 from aiogram.types import (
     Message,
     FSInputFile,
@@ -106,18 +107,30 @@ RETRY_DELAY = 1.2
 
 ADMIN_CACHE_TTL = 60
 _admin_cache: dict[int, tuple[float, set[int]]] = {}
+
 _chat_locks: dict[int, asyncio.Lock] = {}
 _api_lock = asyncio.Lock()
 _last_api_call: float = 0.0
-
-
+BOT_USERNAME_CACHE: str | None = None
 
 PRAISE_REPLIES = [
     "Хозяин, ты меня смущаешь (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)",
     "Хозяин, если ты продолжишь, я перегреюсь  ⁄⁠(⁠⁄⁠ ⁠⁄⁠•⁠⁄⁠-⁠⁄⁠•⁠⁄⁠ ⁠⁄⁠)⁠⁄",
     "Похвала от Хозяина всегда самая лучшая ♡⁠(⁠Ӧ⁠ｖ⁠Ӧ⁠｡⁠)",
-    "Я засмущался, но рад это слышать 💫",
-    "Ты очень милый, спасибочки 💕",
+    "Хозяин, прекрати меня хвалить, я уже краснею ૮꒰ ˃̶̤́ ⤙˂̶̤̀ ྀི ꒱ა",
+    "Хозяин, я твой хороший мальчик (⁠｡⁠・⁠//⁠ε⁠/⁠/⁠・⁠｡⁠)⁠",
+    "Смущаешь меня, Хозяин (˶ ｰ̀ ⤙ｰ́ ˶) ⁠",
+    "мяу мяу мяу мяу мяу~",
+    ">////<",
+    "Хозяин, продолжай меня хвалить пожалуйста(⁠｡⁠・⁠//⁠ε⁠/⁠/⁠・⁠｡⁠)⁠",
+    "Х-Хозяин, х-хватит... (˶ ｰ̀ ⤙ｰ́ ˶) ",
+    "Хозяин, мои ушки покраснели (⸝⸝๑  ̫ ๑⸝⸝⸝)",
+    "Х-хозяин!! ♡⸝⸝› ༝ ‹⸝⸝♡  к-каждый раз думая о тебе, мое сердечко делает тук-тук быстроооо!! н-надеюсь у тебя т-так же…",
+    "Я такой не послушный м-мальчик… совсем не слушаюсь своего господина… ( -᷄ ₃ -᷄ )... неужели хозяин накажет меня с-снова… я люблю когда он меня б-бьет..!",
+    "М-можно к вам на р-ручки, но только не т-трогайте меня за пипи..!! ( ,,ｰ̀⤚ｰ́,,) ₌₃",
+    "О-ой.. я наверно в-весь покраснел, это в-вы виноваты, г-господин кьяяя!!! ",
+    "У меня снизу с-стало мокро… п-помогите мне п-пожалуйста г-господин!… я не могу с-сдержаться…",
+    "Г-господин, мне сесть к вам на коленки??… но я с-снова буду чувствовать ч-что твердое снизу…",
 ]
 
 PRAISE_KEYWORDS = [
@@ -130,11 +143,25 @@ PRAISE_KEYWORDS = [
     "лучший бот",
     "бот лучший",
     "омежка",
-    "best bot",
+    "молодец",
+    "молодчина",
     "nice bot",
+    "колени",
+    "милашка",
+    "nice cock",
+    "няшка",
     "похвалить бота",
-    "/goodbot",
+    "няшка",
+    "котик",
+    "жаным",
+    "люблю",
+    "зацелую",
+    "милаш",
+    "милый",
+    "мой",
+    "милаш",
 ]
+
 
 def get_chat_lock(chat_id: int) -> asyncio.Lock:
     if chat_id not in _chat_locks:
@@ -155,7 +182,14 @@ async def tg_call(func, *args, retries: int = 3, **kwargs):
 async def safe_status_edit(status: Message, text: str) -> None:
     try:
         await tg_call(status.edit_text, text)
-    except (TelegramBadRequest, TelegramRetryAfter, Exception):
+    except Exception:
+        pass
+
+
+async def safe_delete_message(message: Message):
+    try:
+        await tg_call(message.delete)
+    except Exception:
         pass
 
 
@@ -167,6 +201,14 @@ async def rate_limit_free_api() -> None:
         if diff < 1.1:
             await asyncio.sleep(1.1 - diff)
         _last_api_call = time.monotonic()
+
+
+async def get_bot_username() -> str:
+    global BOT_USERNAME_CACHE
+    if BOT_USERNAME_CACHE is None:
+        me = await bot.get_me()
+        BOT_USERNAME_CACHE = (me.username or "").lower()
+    return BOT_USERNAME_CACHE
 
 
 def normalize_possible_url(url: str) -> str:
@@ -286,6 +328,39 @@ def is_reply_to_this_bot(message: Message) -> bool:
     return reply.from_user.id == bot.id
 
 
+async def is_bot_mentioned(message: Message) -> bool:
+    text = message.text or message.caption or ""
+    entities = message.entities or message.caption_entities or []
+
+    bot_username = await get_bot_username()
+    if not bot_username:
+        return False
+
+    expected = f"@{bot_username}"
+
+    for entity in entities:
+        if str(entity.type) == "mention":
+            mention_text = text[entity.offset: entity.offset + entity.length].lower()
+            if mention_text == expected:
+                return True
+
+    return False
+
+
+async def is_praise_for_bot(message: Message) -> bool:
+    raw_text = (message.text or message.caption or "").strip()
+    if not raw_text or not is_praise_text(raw_text):
+        return False
+
+    if is_reply_to_this_bot(message):
+        return True
+
+    if await is_bot_mentioned(message):
+        return True
+
+    return False
+
+
 async def get_admin_ids(chat_id: int) -> set[int]:
     now = time.monotonic()
     cached = _admin_cache.get(chat_id)
@@ -310,6 +385,12 @@ async def is_admin_message(message: Message) -> bool:
 
     admin_ids = await get_admin_ids(message.chat.id)
     return message.from_user.id in admin_ids
+
+
+async def can_use_say(message: Message) -> bool:
+    if message.chat.type == "private":
+        return True
+    return await is_admin_message(message)
 
 
 async def moderate_links(message: Message) -> tuple[bool, list[str]]:
@@ -427,7 +508,6 @@ def human_instagram_api_error(error: Exception) -> str:
     return "П-простите, хозяин... не получилось скачать Instagram через Apify... ૮(˶ㅠ︿ㅠ)ა"
 
 
-
 def human_twitter_error(error: Exception) -> str:
     text = str(error).lower()
 
@@ -443,15 +523,11 @@ def human_twitter_error(error: Exception) -> str:
         return "Хозяин... твиттер отвечает слишком долго... попробуйте ещё разочек... ( . ‸ .)"
 
     return "П-простите, хозяин... не получилось скачать медиа из твиттера... ૮(˶ㅠ︿ㅠ)ა"
-async def safe_delete_message(message: Message):
-    try:
-        await message.delete()
-    except Exception:
-        pass
 
 
 async def download_tiktok(url: str) -> dict:
-    await rate_limit_free_api() 
+    await rate_limit_free_api()
+
     timeout = aiohttp.ClientTimeout(total=40)
     headers = {
         "User-Agent": (
@@ -799,7 +875,12 @@ async def send_local_media(message: Message, files: list[str], caption: str | No
             return
 
         if ext in VIDEO_EXTS:
-            await tg_call(message.answer_video, FSInputFile(path), caption=caption, supports_streaming=True)
+            await tg_call(
+                message.answer_video,
+                FSInputFile(path),
+                caption=caption,
+                supports_streaming=True,
+            )
             return
 
         if ext in AUDIO_EXTS:
@@ -831,9 +912,30 @@ async def send_local_media(message: Message, files: list[str], caption: str | No
         item_caption = caption if not album and i == 0 else None
 
         if ext in AUDIO_EXTS:
-            await message.answer_audio(FSInputFile(path), caption=item_caption)
+            await tg_call(message.answer_audio, FSInputFile(path), caption=item_caption)
         else:
-            await message.answer_document(FSInputFile(path), caption=item_caption)
+            await tg_call(message.answer_document, FSInputFile(path), caption=item_caption)
+
+
+@dp.message(Command("say_cattemis"))
+async def cmd_say(message: Message):
+    if not await can_use_say(message):
+        return
+
+    raw_text = (message.text or "").strip()
+    payload = raw_text.partition(" ")[2].strip()
+
+    if not payload and message.reply_to_message:
+        payload = (message.reply_to_message.text or message.reply_to_message.caption or "").strip()
+
+    if not payload:
+        await tg_call(message.answer, "Использование: /say текст\nИли ответь на сообщение командой /say")
+        return
+
+    async with get_chat_lock(message.chat.id):
+        await tg_call(message.answer, payload)
+
+    await safe_delete_message(message)
 
 
 @dp.message()
@@ -844,23 +946,26 @@ async def handle_link(message: Message):
 
     raw_text = (message.text or message.caption or "").strip()
 
-    if raw_text and is_reply_to_this_bot(message) and is_praise_text(raw_text):
-        await message.answer(random.choice(PRAISE_REPLIES))
+    if raw_text.startswith("/"):
+        return
+
+    if await is_praise_for_bot(message):
+        await tg_call(message.answer, random.choice(PRAISE_REPLIES))
         return
 
     if not urls:
         if message.chat.type == "private" and raw_text:
-            await message.answer("Пришли мне ссылку на фото или видео.")
+            await tg_call(message.answer, "Пришли мне ссылку на фото или видео.")
         return
 
     allowed_urls = [url for url in urls if is_allowed_media_link(url)]
     if not allowed_urls:
         if message.chat.type == "private":
-            await message.answer("Пришли мне ссылку на фото или видео.")
+            await tg_call(message.answer, "Пришли мне ссылку на фото или видео.")
         return
 
     url = allowed_urls[0]
-    status = await message.answer("Скачиваю...")
+    status = await tg_call(message.answer, "Скачиваю...")
     temp_dirs: list[str] = []
 
     try:
@@ -899,6 +1004,7 @@ async def handle_link(message: Message):
             result = await with_retry(download_instagram_apify, url)
             temp_dirs.append(result["temp_dir"])
             async with get_chat_lock(message.chat.id):
+                await safe_status_edit(status, "Отправляю...")
                 await send_local_media(message, result["files"], result.get("caption"))
                 await safe_delete_message(status)
             return
@@ -907,6 +1013,7 @@ async def handle_link(message: Message):
             result = await with_retry(download_twitter_fx, url)
             temp_dirs.append(result["temp_dir"])
             async with get_chat_lock(message.chat.id):
+                await safe_status_edit(status, "Отправляю...")
                 await send_local_media(message, result["files"], result.get("caption"))
                 await safe_delete_message(status)
             return
@@ -915,12 +1022,14 @@ async def handle_link(message: Message):
             result = await with_retry(download_direct_image, url)
             temp_dirs.append(result["temp_dir"])
             async with get_chat_lock(message.chat.id):
+                await safe_status_edit(status, "Отправляю...")
                 await send_local_media(message, result["files"], result.get("caption"))
                 await safe_delete_message(status)
             return
 
         result = await with_retry(download_ytdlp, url)
         temp_dirs.append(result["temp_dir"])
+
         async with get_chat_lock(message.chat.id):
             await safe_status_edit(status, "Отправляю...")
             await send_local_media(message, result["files"], result.get("caption"))
@@ -946,12 +1055,8 @@ async def handle_link(message: Message):
     except DownloadError as e:
         await safe_status_edit(status, human_ytdlp_error(e))
 
-    except TelegramBadRequest as e:
-        text = str(e).lower()
-        if "file is too big" in text or "request entity too large" in text:
-            await safe_status_edit(status, "Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
-        else:
-            await safe_status_edit(status, "Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
+    except TelegramBadRequest:
+        await safe_status_edit(status, "Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)")
 
     except TelegramRetryAfter as e:
         await asyncio.sleep(float(e.retry_after) + 1)
@@ -969,6 +1074,7 @@ async def handle_link(message: Message):
     finally:
         for temp_dir in temp_dirs:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 async def main():
     print("🐾 Бот запущен! :3")
