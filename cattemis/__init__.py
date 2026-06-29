@@ -1,0 +1,1 @@
+"""Cattemis bot package."""
