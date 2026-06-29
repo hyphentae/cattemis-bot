@@ -130,9 +130,12 @@ RETRY_ATTEMPTS = 2
 RETRY_DELAY = 1.2
 
 ADMIN_CACHE_TTL = 60
-_admin_cache: dict[int, tuple[float, set[int]]] = {}
+MAX_HISTORY_MESSAGES = 8
 
+_admin_cache: dict[int, tuple[float, set[int]]] = {}
 _chat_locks: dict[int, asyncio.Lock] = {}
+_chat_histories: dict[int, list[dict[str, str]]] = {}
+
 _api_lock = asyncio.Lock()
 _last_api_call: float = 0.0
 
@@ -159,12 +162,57 @@ class ArtistLink:
 
 _artists_cache: list[ArtistLink] = []
 
+_stats = {
+    "started_at": time.time(),
+    "messages_total": 0,
+    "commands_used": 0,
+    "llm_calls": 0,
+    "llm_errors": 0,
+    "media_total": 0,
+    "media_errors": 0,
+    "tiktok_downloads": 0,
+    "instagram_downloads": 0,
+    "twitter_downloads": 0,
+    "direct_image_downloads": 0,
+    "ytdlp_downloads": 0,
+    "unique_chats": set(),
+}
+
 
 def get_chat_lock(chat_id: int) -> asyncio.Lock:
     if chat_id not in _chat_locks:
         _chat_locks[chat_id] = asyncio.Lock()
     return _chat_locks[chat_id]
 
+
+def get_chat_history(chat_id: int) -> list[dict[str, str]]:
+    if chat_id not in _chat_histories:
+        _chat_histories[chat_id] = []
+    return _chat_histories[chat_id]
+
+
+def append_chat_history(chat_id: int, role: str, content: str) -> None:
+    history = get_chat_history(chat_id)
+    history.append({"role": role, "content": content})
+    if len(history) > MAX_HISTORY_MESSAGES:
+        _chat_histories[chat_id] = history[-MAX_HISTORY_MESSAGES:]
+
+
+def clear_chat_history(chat_id: int) -> None:
+    _chat_histories.pop(chat_id, None)
+
+def stat_inc(key: str, value: int = 1) -> None:
+    _stats[key] = _stats.get(key, 0) + value
+
+def stat_track_chat(chat_id: int) -> None:
+    _stats["unique_chats"].add(chat_id)
+
+def format_uptime(seconds: float) -> str:
+    seconds = int(seconds)
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h}ч {m}м {s}с"
 
 async def tg_call(func, *args, retries: int = 3, **kwargs):
     for attempt in range(retries + 1):
@@ -934,7 +982,7 @@ def load_artists_config() -> None:
     global _artists_cache
 
     if not ARTISTS_CONFIG_PATH.exists():
-        print(f"[artists] файл {ARTISTS_CONFIG_PATH} не найден, /art работать не будет")
+        print(f"☆ Artists - {ARTISTS_CONFIG_PATH} not found, /art won't work")
         _artists_cache = []
         return
 
@@ -959,7 +1007,7 @@ def load_artists_config() -> None:
             links.append(ArtistLink(artist_id=artist_id, label=label, url=url))
 
     _artists_cache = links
-    print(f"[artists] загружено {len(_artists_cache)} ссылок")
+    print(f"☆ Artists loaded, {len(_artists_cache)} links")
 
 
 def random_artist_link(artist_id: str | None = None) -> ArtistLink | None:
@@ -998,39 +1046,43 @@ def strip_unicode_emoji(text: str) -> str:
 
 def cleanup_llm_text(text: str) -> str:
     text = strip_unicode_emoji(text)
+    text = text.replace("**", "")
+    text = text.replace("*", "")
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r" ?([,.;:!?]){2,}", r"\1", text)
     return text.strip()
 
 
-async def ask_llm(user_text: str, user_name: str | None = None) -> str:
+async def ask_llm(chat_id: int, user_text: str, user_name: str | None = None) -> str:
     if not LLM_ENABLED or llm_client is None:
         return "LLM отключён."
 
     display_name = (user_name or "user").strip() or "user"
+    history = get_chat_history(chat_id)
+
+    user_content = f"{display_name}: {user_text}"
+
+    messages = [
+        {"role": "system", "content": LLM_SYSTEM_PROMPT},
+        *history,
+        {"role": "user", "content": user_content},
+    ]
 
     response = await llm_client.chat.completions.create(
         model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": LLM_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"User name: {display_name}\nMessage: {user_text}",
-            },
-        ],
+        messages=messages,
         temperature=0.4,
-        max_tokens=240,
-        extra_body={
-            "chat_template_kwargs": {
-                "enable_thinking": False,
-            }
-        },
+        max_tokens=100,
     )
 
     text = response.choices[0].message.content or ""
-    text = cleanup_llm_text(text)
-    return text or "..."
+    text = cleanup_llm_text(text) or "..."
+
+    append_chat_history(chat_id, "user", user_content)
+    append_chat_history(chat_id, "assistant", text)
+
+    return text
 
 
 async def process_media_url(message: Message, url: str, initial_status_text: str = "Скачиваю..."):
@@ -1041,6 +1093,8 @@ async def process_media_url(message: Message, url: str, initial_status_text: str
         if is_tiktok(url):
             data = await with_retry(download_tiktok, url)
             title = (data.get("title") or "").strip()
+            stat_inc("media_total")
+            stat_inc("tiktok_downloads")
 
             async with get_chat_lock(message.chat.id):
                 images = data.get("images") or []
@@ -1072,6 +1126,8 @@ async def process_media_url(message: Message, url: str, initial_status_text: str
         if is_instagram(url):
             result = await with_retry(download_instagram_apify, url)
             temp_dirs.append(result["temp_dir"])
+            stat_inc("media_total")
+            stat_inc("instagram_downloads")
             async with get_chat_lock(message.chat.id):
                 await safe_status_edit(status, "Отправляю...")
                 await send_local_media(message, result["files"], result.get("caption"))
@@ -1081,6 +1137,8 @@ async def process_media_url(message: Message, url: str, initial_status_text: str
         if is_twitter(url):
             result = await with_retry(download_twitter_fx, url)
             temp_dirs.append(result["temp_dir"])
+            stat_inc("media_total")
+            stat_inc("twitter_downloads")
             async with get_chat_lock(message.chat.id):
                 await safe_status_edit(status, "Отправляю...")
                 await send_local_media(message, result["files"], result.get("caption"))
@@ -1090,12 +1148,16 @@ async def process_media_url(message: Message, url: str, initial_status_text: str
         if is_direct_image(url):
             result = await with_retry(download_direct_image, url)
             temp_dirs.append(result["temp_dir"])
+            stat_inc("media_total")
+            stat_inc("direct_image_downloads")
             async with get_chat_lock(message.chat.id):
                 await safe_status_edit(status, "Отправляю...")
                 await send_local_media(message, result["files"], result.get("caption"))
                 await safe_delete_message(status)
                 return
 
+        stat_inc("media_total")
+        stat_inc("ytdlp_downloads")
         result = await with_retry(download_ytdlp, url)
         temp_dirs.append(result["temp_dir"])
 
@@ -1105,6 +1167,7 @@ async def process_media_url(message: Message, url: str, initial_status_text: str
             await safe_delete_message(status)
 
     except aiohttp.ClientResponseError as e:
+        stat_inc("media_errors")
         text = str(e).lower()
         if is_tiktok(url):
             await safe_status_edit(status, "Хозяин, TikTok не отдал ничего... Попробуй ещё раз попозже, лапочка (⁠｡⁠・⁠/⁠/⁠ε⁠/⁠/⁠・⁠｡⁠)")
@@ -1162,6 +1225,8 @@ async def cmd_help(message: Message):
 
 @dp.message(Command("say_cattemis"))
 async def cmd_say(message: Message):
+    stat_inc("commands_used")
+    stat_track_chat(message.chat.id)
     if not await can_use_say(message):
         return
 
@@ -1180,10 +1245,56 @@ async def cmd_say(message: Message):
 
     await safe_delete_message(message)
 
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    stat_inc("commands_used")
+    stat_track_chat(message.chat.id)
+
+    uptime = format_uptime(time.time() - _stats["started_at"])
+    chats_count = len(_stats["unique_chats"])
+
+    text = (
+        f"Статистика бота:\n"
+        f"Uptime: {uptime}\n"
+        f"Уникальных чатов: {chats_count}\n"
+        f"Сообщений обработано: {_stats['messages_total']}\n"
+        f"Команд использовано: {_stats['commands_used']}\n"
+        f"LLM вызовов: {_stats['llm_calls']}\n"
+        f"LLM ошибок: {_stats['llm_errors']}\n"
+        f"Медиа всего: {_stats['media_total']}\n"
+        f"TikTok: {_stats['tiktok_downloads']}\n"
+        f"Instagram: {_stats['instagram_downloads']}\n"
+        f"Twitter/X: {_stats['twitter_downloads']}\n"
+        f"Direct image: {_stats['direct_image_downloads']}\n"
+        f"yt-dlp: {_stats['ytdlp_downloads']}\n"
+        f"Ошибок медиа: {_stats['media_errors']}"
+    )
+
+    await tg_call(
+        message.answer,
+        text,
+        reply_parameters=ReplyParameters(message_id=message.message_id),
+        parse_mode=None,
+    )
+
+@dp.message(Command("reset"))
+async def cmd_reset(message: Message):
+    stat_inc("commands_used")
+    stat_track_chat(message.chat.id)
+    clear_chat_history(message.chat.id)
+    await tg_call(
+        message.answer,
+        "Память диалога для этого чата очищена.",
+        reply_parameters=ReplyParameters(message_id=message.message_id),
+        parse_mode=None,
+    )
+
 
 @dp.message(Command("gamble_cattemis"))
 @dp.message(Command("art"))
 async def cmd_art(message: Message):
+    stat_inc("commands_used")
+    stat_track_chat(message.chat.id)
     print(f"[art] command from chat={message.chat.id}")
 
     link = random_artist_link()
@@ -1196,6 +1307,8 @@ async def cmd_art(message: Message):
 
 @dp.message(Command("artist"))
 async def cmd_artist(message: Message):
+    stat_inc("commands_used")
+    stat_track_chat(message.chat.id)
     raw_text = (message.text or "").strip()
     artist_id = raw_text.partition(" ")[2].strip()
 
@@ -1213,6 +1326,8 @@ async def cmd_artist(message: Message):
 
 @dp.message()
 async def handle_link(message: Message):
+    stat_inc("messages_total")
+    stat_track_chat(message.chat.id)
     deleted, urls = await moderate_links(message)
     if deleted:
         return
@@ -1253,7 +1368,9 @@ async def handle_link(message: Message):
                 chat_id=message.chat.id,
                 message_thread_id=message.message_thread_id,
             ):
+                stat_inc("llm_calls")
                 reply = await ask_llm(
+                    message.chat.id,
                     raw_text,
                     user_name=message.from_user.first_name if message.from_user else None,
                 )
@@ -1264,13 +1381,16 @@ async def handle_link(message: Message):
                 message.answer,
                 reply,
                 reply_parameters=ReplyParameters(message_id=message.message_id),
+                parse_mode=None,
             )
         except Exception as e:
+            stat_inc("llm_errors")
             print(f"[llm] error: {e}")
             await tg_call(
                 message.answer,
                 "Хозяин... я задумался слишком сильно и не смог ответить TᴖT",
                 reply_parameters=ReplyParameters(message_id=message.message_id),
+                parse_mode=None,
             )
         return
 
@@ -1279,16 +1399,21 @@ async def handle_link(message: Message):
 
 
 async def main():
-    print("🐾 Бот запущен! :3")
+    banner = """
+    ┌──────────────────────────────────────────────┐
+│   🐾 Cattemis bot started! Meow meow meow   
+└──────────────────────────────────────────────┘
+"""
+    print(banner.strip())
+
     load_artists_config()
 
     if LLM_ENABLED:
-        print(f"[llm] enabled, base_url={LLM_BASE_URL}, model={LLM_MODEL}")
+        print(f"☆ LLM enabled, base_url={LLM_BASE_URL}, model={LLM_MODEL}")
     else:
-        print("[llm] disabled")
+        print("☆ LLM disabled")
 
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
