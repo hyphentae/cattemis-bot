@@ -1,19 +1,22 @@
-FROM python:3.14-slim
+FROM python:3.12-slim
+
+# ffmpeg нужен yt-dlp для мёрджа видео+аудио
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
+# Зависимости отдельным слоем — пересборка только при изменении requirements
+COPY cattemis_bot/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
-COPY artists.json .
+# Исходники
+COPY cattemis_bot/ ./cattemis_bot/
+COPY run.py ./run.py
 
-CMD ["python", "main.py"]
+# Не запускать от root
+RUN useradd -m -u 1000 botuser
+USER botuser
+
+CMD ["python", "run.py"]

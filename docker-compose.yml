@@ -1,9 +1,16 @@
 services:
-  media-bot:
+  cattemis:
     build: .
-    container_name: cattemis-bot
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: .env
+
+    # Папка для artists.json — монтируем снаружи,
+    # чтобы можно было редактировать без пересборки образа
     volumes:
-      - ./downloads:/app/downloads
+      - ./artists.json:/app/cattemis_bot/artists.json:ro
+
+    # Ограничения ресурсов (опционально, можно убрать)
+    deploy:
+      resources:
+        limits:
+          memory: 512m

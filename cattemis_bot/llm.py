@@ -1,0 +1,122 @@
+"""LLM chat integration for Cattemis Bot.
+
+Wraps an OpenAI-compatible API (Ollama by default) with:
+- Per-request cooldown to avoid spamming the backend.
+- Per-chat message history trimming.
+- Output post-processing (emoji removal, kaomoji repair).
+
+The ``ask_llm`` coroutine is the single public interface.
+"""
+
+import asyncio
+import logging
+
+from openai import AsyncOpenAI
+
+from .config import settings
+from .state import state
+from .utils.text import cleanup_llm_text, fix_truncated_kaomoji
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Client singleton (None when LLM is disabled)
+# ---------------------------------------------------------------------------
+
+_llm_client: AsyncOpenAI | None = (
+    AsyncOpenAI(
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
+    )
+    if settings.llm_enabled
+    else None
+)
+
+# ---------------------------------------------------------------------------
+# Error helpers
+# ---------------------------------------------------------------------------
+
+def human_instagram_api_error(error: Exception) -> str:
+    """Map an Instagram/Apify error to a friendly Russian message."""
+    text = str(error).lower()
+    if "apify_token" in text:
+        return "П-простите, хозяин... APIFY_TOKEN не задан... ૮(˶ㅠ︿ㅠ)ა"
+    if "http 401" in text or "http 403" in text:
+        return "П-простите, хозяин... Apify не принял токен... ૮(˶ㅠ︿ㅠ)ა"
+    if "http 402" in text:
+        return "Хозяин... у Apify, похоже, закончился баланс или лимит... ૮(˶ㅠ︿ㅠ)ა"
+    if "не вернул результатов" in text:
+        return "Хозяин... Apify ничего не нашёл по этой ссылке... простите... ૮(˶ㅠ︿ㅠ)ა"
+    if "не вернул прямые ссылки" in text:
+        return "Хозяин... Apify обработал ссылку, но не отдал прямые ссылки на медиа... ૮(˶ㅠ︿ㅠ)ა"
+    if "не удалось скачать медиафайлы" in text:
+        return "Хозяин... ссылки достать получилось, н-но сами файлы скачать не вышло... ૮(˶ㅠ︿ㅠ)ა"
+    if "timed out" in text:
+        return "Хозяин... Instagram через Apify отвечает слишком долго... попробуйте ещё разочек... ૮(˶ㅠ︿ㅠ)ა"
+    return "П-простите, хозяин... не получилось скачать Instagram через Apify... ૮(˶ㅠ︿ㅠ)ა"
+
+
+def human_twitter_error(error: Exception) -> str:
+    """Map a Twitter/X download error to a friendly Russian message."""
+    text = str(error).lower()
+    if "распарсить ссылку" in text:
+        return "П-простите, хозяин... я не понял ссылку на пост... ૮(˶ㅠ︿ㅠ)ა"
+    if "не вернул медиа" in text:
+        return "Хозяин... в этом посте не нашлось медиа... ૮(˶ㅠ︿ㅠ)ა"
+    if "404" in text:
+        return "Хозяин... пост не найден или его уже удалили... ૮(˶ㅠ︿ㅠ)ა"
+    if "403" in text:
+        return "П-простите, хозяин... твиттер не отдал данные по этому посту... ( . ‸ .)"
+    if "timed out" in text:
+        return "Хозяин... твиттер отвечает слишком долго... попробуйте ещё разочек... ( . ‸ .)"
+    return "П-простите, хозяин... не получилось скачать медиа из твиттера... ૮(˶ㅠ︿ㅠ)ა"
+
+
+# ---------------------------------------------------------------------------
+# Core LLM call
+# ---------------------------------------------------------------------------
+
+async def ask_llm(chat_id: int, user_text: str, user_name: str | None = None) -> str:
+    """Send *user_text* to the LLM and return the assistant reply.
+
+    - Applies a cooldown before the API call.
+    - Maintains per-chat history (trimmed to ``settings.max_history_messages``).
+    - Cleans up the response text before returning.
+
+    Returns:
+        The cleaned assistant reply, or ``"..."`` if the model returned nothing.
+    """
+    if not settings.llm_enabled or _llm_client is None:
+        return "LLM отключён."
+
+    display_name = (user_name or "user").strip() or "user"
+    history = state.get_history(chat_id)
+    user_content = f"{display_name}: {user_text}"
+
+    messages = [
+        {"role": "system", "content": settings.llm_system_prompt},
+        *history,
+        {"role": "user", "content": user_content},
+    ]
+
+    await asyncio.sleep(settings.llm_cooldown_seconds)
+
+    response = await _llm_client.chat.completions.create(
+        model=settings.llm_model,
+        messages=messages,
+        temperature=settings.llm_temperature,
+        max_tokens=settings.llm_max_tokens,
+        extra_body={"thinking": {"type": "disabled"}},
+    )
+
+    choice = response.choices[0]
+    logger.info("[llm] finish_reason=%r chat_id=%s", choice.finish_reason, chat_id)
+
+    text = choice.message.content or ""
+    text = cleanup_llm_text(text)
+    text = fix_truncated_kaomoji(text)
+
+    state.append_history(chat_id, "user", user_content, max_messages=settings.max_history_messages)
+    state.append_history(chat_id, "assistant", text or "...", max_messages=settings.max_history_messages)
+
+    return text or "..."
