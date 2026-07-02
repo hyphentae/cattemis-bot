@@ -56,9 +56,6 @@ class BotState:
     api_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     last_api_call: float = 0.0
 
-    # Artists list (populated on startup)
-    artists: list = field(default_factory=list)
-
     # ------------------------------------------------------------------
     # Counter helpers
     # ------------------------------------------------------------------

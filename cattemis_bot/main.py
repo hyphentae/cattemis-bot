@@ -11,11 +11,9 @@ Or use the run.py launcher placed next to the cattemis_bot/ folder:
 
 import asyncio
 import logging
-from pathlib import Path
 
 from aiogram import Bot, Dispatcher
 
-from .artists import load_artists_config
 from .config import settings
 from .state import state
 
@@ -51,15 +49,11 @@ _BANNER = """\
 # ---------------------------------------------------------------------------
 
 async def _on_startup() -> None:
-    """Populate bot identity cache and load artists on startup."""
+    """Populate bot identity cache on startup."""
     me = await bot.get_me()
     state.bot_username = (me.username or "").lower()
     state.bot_id = me.id
     logger.info("Bot identity: @%s (id=%s)", state.bot_username, state.bot_id)
-
-    artists_path = Path(__file__).parent / "artists.json"
-    state.artists = load_artists_config(artists_path)
-
     if settings.llm_enabled:
         logger.info(
             "LLM enabled — base_url=%s model=%s cooldown=%.1fs",
@@ -69,8 +63,6 @@ async def _on_startup() -> None:
         )
     else:
         logger.info("LLM disabled")
-
-
 # ---------------------------------------------------------------------------
 # Router registration
 # ---------------------------------------------------------------------------
@@ -82,8 +74,6 @@ def _register_routers() -> None:
 
     dp.include_router(commands_router)
     dp.include_router(media_router)
-
-
 # ---------------------------------------------------------------------------
 # Main coroutine
 # ---------------------------------------------------------------------------
@@ -94,7 +84,5 @@ async def main() -> None:
     _register_routers()
     dp.startup.register(_on_startup)
     await dp.start_polling(bot)
-
-
 if __name__ == "__main__":
     asyncio.run(main())

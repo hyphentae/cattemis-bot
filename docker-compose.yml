@@ -3,13 +3,6 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
-
-    # Папка для artists.json — монтируем снаружи,
-    # чтобы можно было редактировать без пересборки образа
-    volumes:
-      - ./artists.json:/app/cattemis_bot/artists.json:ro
-
-    # Ограничения ресурсов (опционально, можно убрать)
     deploy:
       resources:
         limits:
