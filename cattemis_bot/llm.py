@@ -106,13 +106,16 @@ async def ask_llm(chat_id: int, user_text: str, user_name: str | None = None) ->
         messages=messages,
         temperature=settings.llm_temperature,
         max_tokens=settings.llm_max_tokens,
-        extra_body={"thinking": {"type": "disabled"}},
     )
+
+    if not response.choices:
+        logger.warning("[llm] empty choices from model, chat_id=%s", chat_id)
+        return "..."
 
     choice = response.choices[0]
     logger.info("[llm] finish_reason=%r chat_id=%s", choice.finish_reason, chat_id)
 
-    text = choice.message.content or ""
+    text = (choice.message.content or "") if choice.message else ""
     text = cleanup_llm_text(text)
     text = fix_truncated_kaomoji(text)
 
