@@ -1,9 +1,9 @@
 services:
-  media-bot:
+  cattemis:
     build: .
-    container_name: cattemis-bot
     restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - ./downloads:/app/downloads
+    env_file: .env
+    deploy:
+      resources:
+        limits:
+          memory: 512m
