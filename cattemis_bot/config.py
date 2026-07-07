@@ -31,6 +31,22 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 480
     llm_temperature: float = 0.6
 
+    # --- Vision (photo / video understanding via LLM) ---
+    vision_enabled: bool = False
+    """Enable vision: send images/video frames to the LLM for description."""
+    vision_prompt: str = (
+        "Опиши медиа кратко и по делу на русском: что видно, важные детали, "
+        "текст на изображении если читается. Не выдумывай."
+    )
+    """System prompt used when asking the model to describe media."""
+
+    # --- Whisper (voice / audio transcription) ---
+    whisper_enabled: bool = False
+    """Enable Whisper transcription for voice messages, audio files and video audio."""
+    whisper_model_size: str = "base"
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
+
     # --- Downloader limits ---
     max_media_items: int = 10
     """Maximum number of media files per download batch."""
