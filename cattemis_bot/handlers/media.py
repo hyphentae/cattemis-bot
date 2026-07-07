@@ -26,6 +26,12 @@ from ..state import state
 from ..utils.media import send_local_media
 from ..utils.telegram import safe_delete_message, safe_status_edit, tg_call
 from ..utils.text import extract_urls_from_message, truncate
+from ..vision import (
+    describe_media_with_vision,
+    download_telegram_file,
+    extract_audio_from_video_bytes,
+    transcribe_audio_with_whisper,
+)
 
 try:
     from yt_dlp.utils import DownloadError, ExtractorError
@@ -191,6 +197,88 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Media context builder (vision + whisper)
+# ---------------------------------------------------------------------------
+
+async def _build_media_context(media_source: Message, raw_text: str) -> str | None:
+    """Collect vision / whisper descriptions from *media_source*.
+
+    Returns a combined string (newline-separated) or ``None`` if nothing
+    could be extracted.
+    """
+    contexts: list[str] = []
+    user_hint = raw_text or None
+
+    # --- Photo ---
+    if media_source.photo and settings.vision_enabled:
+        photo = media_source.photo[-1]
+        try:
+            media_bytes, suffix = await download_telegram_file(photo.file_id, "photo.jpg")
+            desc = await describe_media_with_vision(media_bytes, suffix, user_hint)
+            if desc:
+                contexts.append(f"Фото: {desc}")
+        except Exception as exc:
+            logger.warning("[vision] photo error: %s", exc)
+
+    # --- Video ---
+    elif media_source.video:
+        if settings.vision_enabled:
+            try:
+                media_bytes, suffix = await download_telegram_file(
+                    media_source.video.file_id, "video.mp4"
+                )
+                desc = await describe_media_with_vision(media_bytes, suffix, user_hint)
+                if desc:
+                    contexts.append(f"Видео: {desc}")
+            except Exception as exc:
+                logger.warning("[vision] video error: %s", exc)
+
+        if settings.whisper_enabled:
+            try:
+                if not settings.vision_enabled:
+                    media_bytes, suffix = await download_telegram_file(
+                        media_source.video.file_id, "video.mp4"
+                    )
+                extracted_audio, audio_suffix = await extract_audio_from_video_bytes(
+                    media_bytes, suffix or ".mp4"
+                )
+                if extracted_audio:
+                    transcript = await transcribe_audio_with_whisper(
+                        extracted_audio, audio_suffix or ".wav"
+                    )
+                    if transcript:
+                        contexts.append(f"Аудио из видео: {transcript}")
+            except Exception as exc:
+                logger.warning("[whisper] video audio error: %s", exc)
+
+    # --- Voice ---
+    elif media_source.voice and settings.whisper_enabled:
+        try:
+            audio_bytes, suffix = await download_telegram_file(
+                media_source.voice.file_id, "voice.ogg"
+            )
+            transcript = await transcribe_audio_with_whisper(audio_bytes, suffix or ".ogg")
+            if transcript:
+                contexts.append(f"Расшифровка голосового: {transcript}")
+        except Exception as exc:
+            logger.warning("[whisper] voice error: %s", exc)
+
+    # --- Audio file ---
+    elif media_source.audio and settings.whisper_enabled:
+        try:
+            audio_bytes, suffix = await download_telegram_file(
+                media_source.audio.file_id, "audio.mp3"
+            )
+            transcript = await transcribe_audio_with_whisper(audio_bytes, suffix or ".mp3")
+            if transcript:
+                contexts.append(f"Расшифровка аудио: {transcript}")
+        except Exception as exc:
+            logger.warning("[whisper] audio error: %s", exc)
+
+    return "\n\n".join(contexts) if contexts else None
+
+
+# ---------------------------------------------------------------------------
 # General message handler
 # ---------------------------------------------------------------------------
 
@@ -218,7 +306,7 @@ async def handle_link(message: Message) -> None:
         await process_media_url(message, allowed_urls[0])
         return
 
-    if not raw_text:
+    if not raw_text and not (message.photo or message.video or message.voice or message.audio):
         return
 
     should_use_llm = settings.llm_enabled and message.chat.type == "private"
@@ -230,12 +318,12 @@ async def handle_link(message: Message) -> None:
         await _handle_llm(message, raw_text)
         return
 
-    if message.chat.type == "private":
+    if message.chat.type == "private" and not (message.photo or message.video or message.voice or message.audio):
         await tg_call(message.answer, "Пришли мне ссылку на фото или видео.")
 
 
 async def _handle_llm(message: Message, raw_text: str) -> None:
-    """Invoke the LLM and reply, handling errors gracefully."""
+    """Invoke the LLM and reply, collecting vision/whisper context first."""
     from ..main import bot  # lazy import to avoid circular dep
 
     try:
@@ -244,11 +332,26 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
             chat_id=message.chat.id,
             message_thread_id=message.message_thread_id,
         ):
+            # Prefer media from the current message; fall back to replied-to
+            # message so the bot can "see" a photo/video it was tagged on.
+            has_own_media = bool(
+                message.photo or message.video or message.voice or message.audio
+            )
+            media_source = message if has_own_media else (message.reply_to_message or message)
+
+            media_context = await _build_media_context(media_source, raw_text)
+
+            if not raw_text and not media_context:
+                return
+
+            reply_input = raw_text or "Пользователь прислал медиа. Ответь по описанию."
+
             state.inc("llm_calls")
             reply = await ask_llm(
                 message.chat.id,
-                raw_text,
+                reply_input,
                 user_name=message.from_user.first_name if message.from_user else None,
+                media_context=media_context,
             )
 
         reply = reply.strip()[:4000] or "..."

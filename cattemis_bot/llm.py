@@ -4,6 +4,8 @@ Wraps an OpenAI-compatible API (Ollama by default) with:
 - Per-request cooldown to avoid spamming the backend.
 - Per-chat message history trimming.
 - Output post-processing (emoji removal, kaomoji repair).
+- Optional media_context (vision / whisper descriptions) injected into
+  the user turn so the model can reason about photos, videos and audio.
 
 The ``ask_llm`` coroutine is the single public interface.
 """
@@ -76,12 +78,21 @@ def human_twitter_error(error: Exception) -> str:
 # Core LLM call
 # ---------------------------------------------------------------------------
 
-async def ask_llm(chat_id: int, user_text: str, user_name: str | None = None) -> str:
+async def ask_llm(
+    chat_id: int,
+    user_text: str,
+    user_name: str | None = None,
+    media_context: str | None = None,
+) -> str:
     """Send *user_text* to the LLM and return the assistant reply.
 
-    - Applies a cooldown before the API call.
-    - Maintains per-chat history (trimmed to ``settings.max_history_messages``).
-    - Cleans up the response text before returning.
+    Args:
+        chat_id:       Telegram chat id (used for per-chat history).
+        user_text:     The user's message text.
+        user_name:     Display name prepended to the user turn.
+        media_context: Optional description of attached media (from vision /
+                       whisper). When provided it is appended to the user turn
+                       so the model can reason about the media.
 
     Returns:
         The cleaned assistant reply, or ``"..."`` if the model returned nothing.
@@ -91,7 +102,11 @@ async def ask_llm(chat_id: int, user_text: str, user_name: str | None = None) ->
 
     display_name = (user_name or "user").strip() or "user"
     history = state.get_history(chat_id)
-    user_content = f"{display_name}: {user_text}"
+
+    if media_context:
+        user_content = f"{display_name}: {user_text}\n\nОписание медиа:\n{media_context}"
+    else:
+        user_content = f"{display_name}: {user_text}"
 
     messages = [
         {"role": "system", "content": settings.llm_system_prompt},
