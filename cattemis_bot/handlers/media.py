@@ -15,11 +15,12 @@ from aiogram.utils.chat_action import ChatActionSender
 
 from ..config import settings
 from ..downloaders import with_retry
+from ..downloaders.cobalt import CobaltError, download_cobalt
 from ..downloaders.direct import download_direct_image, is_direct_image
 from ..downloaders.instagram import download_instagram_apify, is_instagram
 from ..downloaders.tiktok import download_tiktok, is_tiktok
 from ..downloaders.twitter import download_twitter_fx, is_twitter
-from ..downloaders.ytdlp import download_ytdlp, human_ytdlp_error
+from ..downloaders.ytdlp import download_ytdlp, human_ytdlp_error, is_youtube
 from ..llm import ask_llm, human_instagram_api_error, human_twitter_error
 from ..moderation import is_allowed_media_link, moderate_links
 from ..state import state
@@ -41,6 +42,21 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 router = Router(name="media")
+
+REDDIT_DOMAINS: frozenset[str] = frozenset(
+    {"reddit.com", "www.reddit.com", "old.reddit.com", "m.reddit.com", "redd.it"}
+)
+
+
+def is_reddit(url: str) -> bool:
+    """Return True if *url* belongs to Reddit."""
+    from urllib.parse import urlparse
+
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return False
+    return any(host == d or host.endswith("." + d) for d in REDDIT_DOMAINS)
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +103,30 @@ async def _send_error(status: Message, url: str, exc: Exception) -> None:
 
 
 # ---------------------------------------------------------------------------
+# YouTube / Reddit: Cobalt primary, yt-dlp fallback
+# ---------------------------------------------------------------------------
+
+
+async def _download_youtube_or_reddit(url: str):
+    """Download YouTube/Reddit media, preferring Cobalt over yt-dlp.
+
+    Tries Cobalt first (free public instance). On ``error``, ``rate-limit``,
+    or an empty response, falls back to the existing yt-dlp path.
+    """
+    if settings.cobalt_enabled:
+        try:
+            result = await with_retry(download_cobalt, url)
+            state.inc("cobalt_downloads")
+            return result
+        except CobaltError as exc:
+            logger.info("[cobalt] falling back to yt-dlp for %s: %s", url, exc)
+
+    result = await with_retry(download_ytdlp, url)
+    state.inc("ytdlp_downloads")
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Core media processor
 # ---------------------------------------------------------------------------
 
@@ -116,6 +156,9 @@ async def process_media_url(
             result = await with_retry(download_direct_image, url)
             state.inc("media_total")
             state.inc("direct_image_downloads")
+        elif is_youtube(url) or is_reddit(url):
+            result = await _download_youtube_or_reddit(url)
+            state.inc("media_total")
         else:
             result = await with_retry(download_ytdlp, url)
             state.inc("media_total")
