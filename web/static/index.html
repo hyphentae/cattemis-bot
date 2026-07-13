@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cattemis :3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0f;
+    color: #e8e0f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header {
+    width: 100%;
+    max-width: 800px;
+    padding: 20px 24px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #2a2040;
+  }
+  header h1 { font-size: 1.3rem; color: #c9a0f0; }
+  header span { font-size: 1.5rem; }
+  #messages {
+    flex: 1;
+    width: 100%;
+    max-width: 800px;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 75%;
+    padding: 10px 15px;
+    border-radius: 16px;
+    line-height: 1.5;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #3a1f5c;
+    border-bottom-right-radius: 4px;
+    color: #f0e8ff;
+  }
+  .msg.bot {
+    align-self: flex-start;
+    background: #1a1428;
+    border: 1px solid #2a2040;
+    border-bottom-left-radius: 4px;
+    color: #ddd0f5;
+  }
+  .msg.bot .name { font-size: 0.75rem; color: #a070d0; margin-bottom: 4px; }
+  #inputbar {
+    width: 100%;
+    max-width: 800px;
+    padding: 16px 24px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #2a2040;
+  }
+  #input {
+    flex: 1;
+    background: #1a1428;
+    border: 1px solid #3a2060;
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: #f0e8ff;
+    font-size: 0.95rem;
+    outline: none;
+    resize: none;
+  }
+  #input:focus { border-color: #7040b0; }
+  #send {
+    background: #6030a0;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+  }
+  #send:hover { background: #7a40c0; }
+  #send:disabled { background: #3a2060; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<header>
+  <span>🐾</span>
+  <h1>Cattemis :3</h1>
+</header>
+<div id="messages">
+  <div class="msg bot"><div class="name">cattemis</div>Nya~ привет! Чем могу помочь? :3</div>
+</div>
+<div id="inputbar">
+  <textarea id="input" rows="1" placeholder="напиши что-нибудь..."></textarea>
+  <button id="send">➤</button>
+</div>
+<script>
+  const msgs = document.getElementById('messages');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  let history = [];
+
+  function addMsg(role, text) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+    if (role === 'bot') {
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = 'cattemis';
+      div.appendChild(name);
+    }
+    const content = document.createElement('span');
+    content.textContent = text;
+    div.appendChild(content);
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return content;
+  }
+
+  async function send() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    sendBtn.disabled = true;
+    addMsg('user', text);
+    history.push({role: 'user', content: text});
+
+    const content = addMsg('bot', '');
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text, history: history.slice(0, -1)})
+      });
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let full = '';
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        const lines = dec.decode(value).split('\n').filter(Boolean);
+        for (const line of lines) {
+          const d = JSON.parse(line);
+          if (d.chunk) { full += d.chunk; content.textContent = full; msgs.scrollTop = msgs.scrollHeight; }
+          if (d.done) history.push({role: 'assistant', content: d.full});
+        }
+      }
+    } catch(e) {
+      content.textContent = 'ошибка: ' + e.message;
+    }
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+</script>
+</body>
+</html>
