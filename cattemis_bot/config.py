@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
 
+    # --- Cobalt (free primary downloader for YouTube / Reddit) ---
+    cobalt_enabled: bool = True
+    """Enable Cobalt as the primary downloader for YouTube/Reddit links."""
+    cobalt_api_url: str = "https://capi.3kh0.net"
+    """Base URL of the Cobalt API instance (no trailing slash needed)."""
+
     # --- Downloader limits ---
     max_media_items: int = 10
     """Maximum number of media files per download batch."""
