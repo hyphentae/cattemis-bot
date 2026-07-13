@@ -70,12 +70,12 @@ async def _on_startup() -> None:
 def _register_routers() -> None:
     """Import and include all handler routers onto the Dispatcher."""
     from .handlers.commands import router as commands_router
-    from .handlers.media import router as media_router
     from .handlers.tictactoe import router as ttt_router
+    from .handlers.media import router as media_router
 
     dp.include_router(commands_router)
+    dp.include_router(ttt_router)   # before media so LLM doesn't intercept /ttt
     dp.include_router(media_router)
-    dp.include_router(ttt_router)
 # ---------------------------------------------------------------------------
 # Main coroutine
 # ---------------------------------------------------------------------------
