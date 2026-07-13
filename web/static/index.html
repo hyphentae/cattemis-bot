@@ -5,169 +5,588 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cattemis :3</title>
 <style>
+  /* Catppuccin Mocha */
+  :root {
+    --base:    #1e1e2e;
+    --mantle:  #181825;
+    --crust:   #11111b;
+    --surface0:#313244;
+    --surface1:#45475a;
+    --surface2:#585b70;
+    --overlay0:#6c7086;
+    --overlay1:#7f849c;
+    --overlay2:#9399b2;
+    --subtext0:#a6adc8;
+    --subtext1:#bac2de;
+    --text:    #cdd6f4;
+    --lavender:#b4befe;
+    --blue:    #89b4fa;
+    --sapphire:#74c7ec;
+    --sky:     #89dceb;
+    --teal:    #94e2d5;
+    --green:   #a6e3a1;
+    --yellow:  #f9e2af;
+    --peach:   #fab387;
+    --maroon:  #eba0ac;
+    --red:     #f38ba8;
+    --mauve:   #cba6f7;
+    --pink:    #f5c2e7;
+    --flamingo:#f2cdcd;
+    --rosewater:#f5e0dc;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: #0d0d0f;
-    color: #e8e0f0;
+    background: var(--base);
+    color: var(--text);
     font-family: 'Segoe UI', system-ui, sans-serif;
     height: 100vh;
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    overflow: hidden;
   }
-  header {
-    width: 100%;
-    max-width: 800px;
-    padding: 20px 24px 12px;
+
+  /* Sidebar */
+  #sidebar {
+    width: 200px;
+    min-width: 200px;
+    background: var(--mantle);
+    border-right: 1px solid var(--surface0);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+  }
+  #sidebar .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 18px 20px;
+    border-bottom: 1px solid var(--surface0);
+    margin-bottom: 12px;
+  }
+  #sidebar .logo span { font-size: 1.4rem; }
+  #sidebar .logo h1 { font-size: 1rem; color: var(--mauve); font-weight: 600; }
+  .nav-btn {
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid #2a2040;
-  }
-  header h1 { font-size: 1.3rem; color: #c9a0f0; }
-  header span { font-size: 1.5rem; }
-  #messages {
-    flex: 1;
+    padding: 10px 18px;
+    cursor: pointer;
+    color: var(--subtext1);
+    font-size: 0.9rem;
+    border: none;
+    background: none;
     width: 100%;
-    max-width: 800px;
-    overflow-y: auto;
-    padding: 20px 24px;
+    text-align: left;
+    border-radius: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-btn:hover { background: var(--surface0); color: var(--text); }
+  .nav-btn.active { background: var(--surface0); color: var(--mauve); }
+  .nav-btn .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+
+  /* Main content */
+  #main {
+    flex: 1;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+  }
+  #topbar {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--surface0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--mantle);
+  }
+  #topbar h2 { font-size: 1rem; font-weight: 600; color: var(--text); }
+  #bot-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--subtext0);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .dot.offline { background: var(--red); }
+
+  /* Pages */
+  .page { display: none; flex: 1; overflow-y: auto; padding: 24px; }
+  .page.active { display: flex; flex-direction: column; gap: 20px; }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 14px;
   }
-  .msg {
+  .stat-card {
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stat-card .label { font-size: 0.75rem; color: var(--subtext0); text-transform: uppercase; letter-spacing: .05em; }
+  .stat-card .value { font-size: 1.6rem; font-weight: 700; color: var(--mauve); }
+  .stat-card .sub { font-size: 0.78rem; color: var(--overlay1); }
+
+  /* Downloads breakdown */
+  .section-title { font-size: 0.85rem; font-weight: 600; color: var(--subtext1); text-transform: uppercase; letter-spacing: .06em; }
+  .dl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .dl-card {
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .dl-card .ico { font-size: 1.3rem; }
+  .dl-card .info .name { font-size: 0.78rem; color: var(--subtext0); }
+  .dl-card .info .cnt { font-size: 1.1rem; font-weight: 700; color: var(--blue); }
+
+  /* Uptime bar */
+  .uptime-block {
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .uptime-block .ico { font-size: 2rem; }
+  .uptime-block .val { font-size: 1.2rem; font-weight: 600; color: var(--green); }
+  .uptime-block .lbl { font-size: 0.8rem; color: var(--subtext0); }
+
+  /* Chats list */
+  .chats-list { display: flex; flex-direction: column; gap: 8px; }
+  .chat-item {
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .chat-item:hover { border-color: var(--mauve); }
+  .chat-item.selected { border-color: var(--mauve); background: var(--surface0); }
+  .chat-item .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .chat-item .meta { flex: 1; overflow: hidden; }
+  .chat-item .chat-id { font-size: 0.85rem; font-weight: 600; color: var(--lavender); }
+  .chat-item .preview { font-size: 0.78rem; color: var(--subtext0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-item .badge {
+    background: var(--surface1); color: var(--subtext1);
+    font-size: 0.7rem; padding: 2px 7px; border-radius: 999px;
+  }
+
+  /* Chat detail */
+  #chat-detail { display: none; flex-direction: column; gap: 10px; }
+  #chat-detail.visible { display: flex; }
+  #back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: none; border: none; color: var(--subtext1);
+    cursor: pointer; font-size: 0.85rem; padding: 0;
+  }
+  #back-btn:hover { color: var(--mauve); }
+  .history-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .hist-msg {
     max-width: 75%;
-    padding: 10px 15px;
-    border-radius: 16px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 0.9rem;
     line-height: 1.5;
-    font-size: 0.95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .hist-msg.user {
+    align-self: flex-end;
+    background: var(--surface1);
+    border-bottom-right-radius: 4px;
+    color: var(--text);
+  }
+  .hist-msg.assistant {
+    align-self: flex-start;
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+  .hist-msg .role-label { font-size: 0.7rem; color: var(--mauve); margin-bottom: 4px; }
+
+  /* Chat UI page */
+  #page-chat {
+    padding: 0 !important;
+    flex-direction: column !important;
+  }
+  #messages {
+    flex: 1;
+    padding: 20px 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 72%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 0.92rem;
+    line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
   }
   .msg.user {
     align-self: flex-end;
-    background: #3a1f5c;
+    background: var(--surface1);
     border-bottom-right-radius: 4px;
-    color: #f0e8ff;
   }
   .msg.bot {
     align-self: flex-start;
-    background: #1a1428;
-    border: 1px solid #2a2040;
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
     border-bottom-left-radius: 4px;
-    color: #ddd0f5;
   }
-  .msg.bot .name { font-size: 0.75rem; color: #a070d0; margin-bottom: 4px; }
+  .msg.bot .name { font-size: 0.72rem; color: var(--mauve); margin-bottom: 4px; }
   #inputbar {
-    width: 100%;
-    max-width: 800px;
-    padding: 16px 24px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--surface0);
     display: flex;
     gap: 10px;
-    border-top: 1px solid #2a2040;
+    background: var(--mantle);
   }
-  #input {
+  #chat-input {
     flex: 1;
-    background: #1a1428;
-    border: 1px solid #3a2060;
-    border-radius: 12px;
-    padding: 10px 16px;
-    color: #f0e8ff;
-    font-size: 0.95rem;
+    background: var(--surface0);
+    border: 1px solid var(--surface1);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-size: 0.92rem;
     outline: none;
     resize: none;
+    font-family: inherit;
   }
-  #input:focus { border-color: #7040b0; }
-  #send {
-    background: #6030a0;
-    color: white;
+  #chat-input:focus { border-color: var(--mauve); }
+  #send-btn {
+    background: var(--mauve);
+    color: var(--base);
     border: none;
-    border-radius: 12px;
-    padding: 10px 20px;
+    border-radius: 10px;
+    padding: 9px 18px;
     cursor: pointer;
-    font-size: 0.95rem;
-    transition: background 0.2s;
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: opacity 0.15s;
   }
-  #send:hover { background: #7a40c0; }
-  #send:disabled { background: #3a2060; cursor: not-allowed; }
+  #send-btn:hover { opacity: 0.85; }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--mantle); }
+  ::-webkit-scrollbar-thumb { background: var(--surface1); border-radius: 3px; }
+
+  /* Refresh btn */
+  .refresh-btn {
+    background: none; border: 1px solid var(--surface1);
+    color: var(--subtext1); border-radius: 8px;
+    padding: 5px 12px; cursor: pointer; font-size: 0.8rem;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .refresh-btn:hover { border-color: var(--mauve); color: var(--mauve); }
+  .error-msg { color: var(--red); font-size: 0.85rem; }
 </style>
 </head>
 <body>
-<header>
-  <span>🐾</span>
-  <h1>Cattemis :3</h1>
-</header>
-<div id="messages">
-  <div class="msg bot"><div class="name">cattemis</div>Nya~ привет! Чем могу помочь? :3</div>
+
+<div id="sidebar">
+  <div class="logo">
+    <span>🐾</span>
+    <h1>Cattemis :3</h1>
+  </div>
+  <button class="nav-btn active" data-page="stats" onclick="showPage('stats', this)">
+    <span class="icon">📊</span> Stats
+  </button>
+  <button class="nav-btn" data-page="chats" onclick="showPage('chats', this)">
+    <span class="icon">💬</span> Chats
+  </button>
+  <button class="nav-btn" data-page="chat" onclick="showPage('chat', this)">
+    <span class="icon">🤖</span> Chat
+  </button>
 </div>
-<div id="inputbar">
-  <textarea id="input" rows="1" placeholder="напиши что-нибудь..."></textarea>
-  <button id="send">➤</button>
+
+<div id="main">
+  <div id="topbar">
+    <h2 id="page-title">Statistics</h2>
+    <div id="bot-status">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">loading…</span>
+    </div>
+  </div>
+
+  <!-- STATS PAGE -->
+  <div class="page active" id="page-stats">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="section-title">Overview</span>
+      <button class="refresh-btn" onclick="loadStats()">↻ Refresh</button>
+    </div>
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <div class="uptime-block" id="uptime-block">
+      <div class="ico">⏱️</div>
+      <div>
+        <div class="lbl">Uptime</div>
+        <div class="val" id="uptime-val">—</div>
+      </div>
+    </div>
+
+    <span class="section-title">Downloads</span>
+    <div class="dl-grid" id="dl-grid"></div>
+    <div class="error-msg" id="stats-error"></div>
+  </div>
+
+  <!-- CHATS PAGE -->
+  <div class="page" id="page-chats">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="section-title">Active Chats</span>
+      <button class="refresh-btn" onclick="loadChats()">↻ Refresh</button>
+    </div>
+    <div class="chats-list" id="chats-list"></div>
+    <div id="chat-detail">
+      <button id="back-btn" onclick="backToChats()">← Back</button>
+      <div class="history-wrap" id="history-wrap"></div>
+    </div>
+    <div class="error-msg" id="chats-error"></div>
+  </div>
+
+  <!-- CHAT PAGE -->
+  <div class="page" id="page-chat">
+    <div id="messages">
+      <div class="msg bot"><div class="name">cattemis</div><span>Nya~ привет! Чем могу помочь? :3</span></div>
+    </div>
+    <div id="inputbar">
+      <textarea id="chat-input" rows="1" placeholder="напиши что-нибудь…"></textarea>
+      <button id="send-btn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+
 </div>
+
 <script>
-  const msgs = document.getElementById('messages');
-  const input = document.getElementById('input');
-  const sendBtn = document.getElementById('send');
-  let history = [];
+const pageTitles = { stats: 'Statistics', chats: 'Chats', chat: 'Chat' };
+let chatHistory = [];
 
-  function addMsg(role, text) {
-    const div = document.createElement('div');
-    div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-    if (role === 'bot') {
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = 'cattemis';
-      div.appendChild(name);
-    }
-    const content = document.createElement('span');
-    content.textContent = text;
-    div.appendChild(content);
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    return content;
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id];
+  if (id === 'stats') loadStats();
+  if (id === 'chats') loadChats();
+}
+
+// ---- STATUS ----
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    document.getElementById('status-dot').classList.remove('offline');
+    document.getElementById('status-text').textContent = d.bot || 'online';
+  } catch {
+    document.getElementById('status-dot').classList.add('offline');
+    document.getElementById('status-text').textContent = 'offline';
   }
+}
 
-  async function send() {
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    sendBtn.disabled = true;
-    addMsg('user', text);
-    history.push({role: 'user', content: text});
+// ---- STATS ----
+function fmtUptime(s) {
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600),
+        m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m ${sec}s`;
+  return `${m}m ${sec}s`;
+}
 
-    const content = addMsg('bot', '');
+async function loadStats() {
+  document.getElementById('stats-error').textContent = '';
+  try {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    if (d.error) { document.getElementById('stats-error').textContent = d.error; return; }
 
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text, history: history.slice(0, -1)})
+    document.getElementById('uptime-val').textContent = fmtUptime(d.uptime_seconds);
+
+    const main = [
+      { label: 'Messages', value: d.messages_total, sub: 'total processed', color: 'var(--mauve)' },
+      { label: 'Commands', value: d.commands_used, sub: 'used', color: 'var(--blue)' },
+      { label: 'LLM Calls', value: d.llm_calls, sub: `${d.llm_errors} errors`, color: 'var(--green)' },
+      { label: 'Media', value: d.media_total, sub: `${d.media_errors} errors`, color: 'var(--peach)' },
+      { label: 'Unique Chats', value: d.unique_chats, sub: 'seen', color: 'var(--lavender)' },
+    ];
+    const grid = document.getElementById('stats-grid');
+    grid.innerHTML = main.map(s => `
+      <div class="stat-card">
+        <div class="label">${s.label}</div>
+        <div class="value" style="color:${s.color}">${s.value ?? 0}</div>
+        <div class="sub">${s.sub}</div>
+      </div>`).join('');
+
+    const dls = [
+      { name: 'TikTok', cnt: d.tiktok_downloads, ico: '🎵' },
+      { name: 'Instagram', cnt: d.instagram_downloads, ico: '📸' },
+      { name: 'Twitter/X', cnt: d.twitter_downloads, ico: '🐦' },
+      { name: 'Direct image', cnt: d.direct_image_downloads, ico: '🖼️' },
+      { name: 'yt-dlp', cnt: d.ytdlp_downloads, ico: '▶️' },
+    ];
+    document.getElementById('dl-grid').innerHTML = dls.map(d => `
+      <div class="dl-card">
+        <div class="ico">${d.ico}</div>
+        <div class="info">
+          <div class="name">${d.name}</div>
+          <div class="cnt">${d.cnt ?? 0}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('stats-error').textContent = 'Failed to load stats: ' + e.message;
+  }
+}
+
+// ---- CHATS ----
+let chatsData = [];
+
+async function loadChats() {
+  document.getElementById('chats-error').textContent = '';
+  document.getElementById('chat-detail').classList.remove('visible');
+  document.getElementById('chats-list').style.display = 'flex';
+  try {
+    const r = await fetch('/api/chats');
+    const d = await r.json();
+    if (d.error) { document.getElementById('chats-error').textContent = d.error; return; }
+    chatsData = d.chats || [];
+    const list = document.getElementById('chats-list');
+    if (chatsData.length === 0) {
+      list.innerHTML = '<div style="color:var(--subtext0);font-size:.85rem">No active chats yet :3</div>';
+      return;
+    }
+    list.innerHTML = chatsData.map(c => `
+      <div class="chat-item" onclick="openChat(${c.chat_id})">
+        <div class="avatar">💬</div>
+        <div class="meta">
+          <div class="chat-id">${c.chat_id}</div>
+          <div class="preview">${escHtml(c.last_preview || '—')}</div>
+        </div>
+        <div class="badge">${c.message_count} msgs</div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('chats-error').textContent = 'Failed: ' + e.message;
+  }
+}
+
+async function openChat(chatId) {
+  document.getElementById('chats-list').style.display = 'none';
+  const detail = document.getElementById('chat-detail');
+  detail.classList.add('visible');
+  const wrap = document.getElementById('history-wrap');
+  wrap.innerHTML = '<div style="color:var(--subtext0);font-size:.85rem">Loading…</div>';
+  try {
+    const r = await fetch(`/api/chats/${chatId}`);
+    const d = await r.json();
+    if (d.error) { wrap.innerHTML = `<div class="error-msg">${d.error}</div>`; return; }
+    const h = d.history || [];
+    if (h.length === 0) { wrap.innerHTML = '<div style="color:var(--subtext0);font-size:.85rem">Empty history</div>'; return; }
+    wrap.innerHTML = h.map(m => `
+      <div class="hist-msg ${m.role}">
+        <div class="role-label">${m.role}</div>
+        ${escHtml(m.content)}
+      </div>`).join('');
+  } catch(e) {
+    wrap.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function backToChats() {
+  document.getElementById('chat-detail').classList.remove('visible');
+  document.getElementById('chats-list').style.display = 'flex';
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ---- CHAT UI ----
+const msgsEl = document.getElementById('messages');
+const inputEl = document.getElementById('chat-input');
+const sendBtnEl = document.getElementById('send-btn');
+
+function addMsg(role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  if (role === 'bot') {
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = 'cattemis';
+    div.appendChild(name);
+  }
+  const content = document.createElement('span'); content.textContent = text;
+  div.appendChild(content);
+  msgsEl.appendChild(div);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+  return content;
+}
+
+async function sendMsg() {
+  const text = inputEl.value.trim();
+  if (!text) return;
+  inputEl.value = ''; sendBtnEl.disabled = true;
+  addMsg('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  const content = addMsg('bot', '');
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: chatHistory.slice(0, -1) })
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let full = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      dec.decode(value).split('\n').filter(Boolean).forEach(line => {
+        const d = JSON.parse(line);
+        if (d.chunk) { full += d.chunk; content.textContent = full; msgsEl.scrollTop = msgsEl.scrollHeight; }
+        if (d.done) chatHistory.push({ role: 'assistant', content: d.full });
       });
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let full = '';
-      while (true) {
-        const {done, value} = await reader.read();
-        if (done) break;
-        const lines = dec.decode(value).split('\n').filter(Boolean);
-        for (const line of lines) {
-          const d = JSON.parse(line);
-          if (d.chunk) { full += d.chunk; content.textContent = full; msgs.scrollTop = msgs.scrollHeight; }
-          if (d.done) history.push({role: 'assistant', content: d.full});
-        }
-      }
-    } catch(e) {
-      content.textContent = 'ошибка: ' + e.message;
     }
-    sendBtn.disabled = false;
-    input.focus();
-  }
+  } catch(e) { content.textContent = 'ошибка: ' + e.message; }
+  sendBtnEl.disabled = false;
+  inputEl.focus();
+}
 
-  sendBtn.addEventListener('click', send);
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-  });
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+
+// Init
+checkStatus();
+loadStats();
+setInterval(checkStatus, 15000);
 </script>
 </body>
 </html>
