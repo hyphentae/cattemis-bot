@@ -135,7 +135,11 @@ async def process_media_url(
     url: str,
     initial_status_text: str = "Скачиваю...",
 ) -> None:
-    """Download media from *url* and send it to *message*."""
+    """Download media from *url* and send it to *message*.
+
+    After a successful download the media is sent as a reply to *message*
+    (the message that contained the original URL).
+    """
     status = await tg_call(message.answer, initial_status_text)
     result = None
 
@@ -166,7 +170,12 @@ async def process_media_url(
 
         async with state.get_lock(message.chat.id):
             await safe_status_edit(status, "Отправляю...")
-            await send_local_media(message, result.files, result.caption)
+            await send_local_media(
+                message,
+                result.files,
+                result.caption,
+                reply_to_message_id=message.message_id,
+            )
             await safe_delete_message(status)
 
     except (DownloadError, ExtractorError) as exc:
@@ -212,6 +221,8 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
     state.inc("media_total")
     state.inc("tiktok_downloads")
 
+    reply_params = ReplyParameters(message_id=message.message_id)
+
     async with state.get_lock(message.chat.id):
         images = data.get("images") or []
         if images:
@@ -222,7 +233,11 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
                 )
                 for i, img in enumerate(images[:10])
             ]
-            await tg_call(message.answer_media_group, media=media)
+            await tg_call(
+                message.answer_media_group,
+                media=media,
+                reply_parameters=reply_params,
+            )
             await safe_delete_message(status)
             return
 
@@ -235,6 +250,7 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
             video=video_url,
             caption=title,
             supports_streaming=True,
+            reply_parameters=reply_params,
         )
         await safe_delete_message(status)
 
@@ -361,7 +377,9 @@ async def handle_link(message: Message) -> None:
         await _handle_llm(message, raw_text)
         return
 
-    if message.chat.type == "private" and not (message.photo or message.video or message.voice or message.audio):
+    if message.chat.type == "private" and not (
+        message.photo or message.video or message.voice or message.audio
+    ):
         await tg_call(message.answer, "Пришли мне ссылку на фото или видео.")
 
 
@@ -375,8 +393,6 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
             chat_id=message.chat.id,
             message_thread_id=message.message_thread_id,
         ):
-            # Prefer media from the current message; fall back to replied-to
-            # message so the bot can "see" a photo/video it was tagged on.
             has_own_media = bool(
                 message.photo or message.video or message.voice or message.audio
             )
