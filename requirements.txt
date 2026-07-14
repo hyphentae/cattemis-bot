@@ -1,3 +1,12 @@
+# Bot core
+aiogram>=3.7
+aiohttp>=3.9
+openai>=1.0
+yt-dlp>=2024.1
+python-dotenv>=1.0
+pydantic-settings>=2.0
+
+# Web interface
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 aiofiles>=23.0.0

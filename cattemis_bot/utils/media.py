@@ -14,6 +14,7 @@ from aiogram.types import (
     InputMediaPhoto,
     InputMediaVideo,
     Message,
+    ReplyParameters,
 )
 
 from .telegram import tg_call
@@ -77,6 +78,7 @@ async def send_local_media(
     message: Message,
     files: list[str],
     caption: str | None = None,
+    reply_to_message_id: int | None = None,
 ) -> None:
     """Send one or more local media files as a Telegram message.
 
@@ -84,12 +86,14 @@ async def send_local_media(
     - Multiple files: photos and videos are grouped into a media album; audio
       and other formats are sent individually.
     - Files larger than ``MAX_FILE_SIZE`` are skipped with a warning.
+    - If *reply_to_message_id* is given, the media is sent as a reply to that message.
     """
     files = files[:10]
     if not files:
         raise RuntimeError("Нет файлов для отправки")
 
     caption_text: str | None = (caption or "").strip()[:1024] or None
+    reply_params = ReplyParameters(message_id=reply_to_message_id) if reply_to_message_id else None
 
     # Filter out oversized files
     valid_files: list[str] = []
@@ -99,39 +103,52 @@ async def send_local_media(
         else:
             await tg_call(
                 message.answer,
-                f"Хозяин, файл слишком большой для Telegram (>50 MB) и пропущен.",
+                "Хозяин, файл слишком большой для Telegram (>50 MB) и пропущен.",
             )
 
     if not valid_files:
         raise RuntimeError("Все файлы превышают лимит Telegram 50 MB")
 
     if len(valid_files) == 1:
-        await _send_single(message, valid_files[0], caption_text)
+        await _send_single(message, valid_files[0], caption_text, reply_params)
         return
 
-    await _send_album(message, valid_files, caption_text)
+    await _send_album(message, valid_files, caption_text, reply_params)
 
 
-async def _send_single(message: Message, path: str, caption: str | None) -> None:
+async def _send_single(
+    message: Message,
+    path: str,
+    caption: str | None,
+    reply_params: ReplyParameters | None = None,
+) -> None:
     """Send a single local file to *message*."""
     ext = Path(path).suffix.lower()
+    kwargs = {"caption": caption}
+    if reply_params:
+        kwargs["reply_parameters"] = reply_params
 
     if ext in IMAGE_EXTS:
-        await tg_call(message.answer_photo, FSInputFile(path), caption=caption)
+        await tg_call(message.answer_photo, FSInputFile(path), **kwargs)
     elif ext in VIDEO_EXTS:
         await tg_call(
             message.answer_video,
             FSInputFile(path),
-            caption=caption,
             supports_streaming=True,
+            **kwargs,
         )
     elif ext in AUDIO_EXTS:
-        await tg_call(message.answer_audio, FSInputFile(path), caption=caption)
+        await tg_call(message.answer_audio, FSInputFile(path), **kwargs)
     else:
-        await tg_call(message.answer_document, FSInputFile(path), caption=caption)
+        await tg_call(message.answer_document, FSInputFile(path), **kwargs)
 
 
-async def _send_album(message: Message, files: list[str], caption: str | None) -> None:
+async def _send_album(
+    message: Message,
+    files: list[str],
+    caption: str | None,
+    reply_params: ReplyParameters | None = None,
+) -> None:
     """Send multiple local files as a media album + individual leftovers."""
     album: list[InputMediaPhoto | InputMediaVideo] = []
     leftovers: list[str] = []
@@ -147,14 +164,21 @@ async def _send_album(message: Message, files: list[str], caption: str | None) -
         else:
             leftovers.append(path)
 
+    album_kwargs = {}
+    if reply_params:
+        album_kwargs["reply_parameters"] = reply_params
+
     if album:
-        await tg_call(message.answer_media_group, media=album)
+        await tg_call(message.answer_media_group, media=album, **album_kwargs)
 
     for i, path in enumerate(leftovers):
         ext = Path(path).suffix.lower()
         item_caption = caption if not album and i == 0 else None
+        leftover_kwargs = {"caption": item_caption}
+        if reply_params:
+            leftover_kwargs["reply_parameters"] = reply_params
 
         if ext in AUDIO_EXTS:
-            await tg_call(message.answer_audio, FSInputFile(path), caption=item_caption)
+            await tg_call(message.answer_audio, FSInputFile(path), **leftover_kwargs)
         else:
-            await tg_call(message.answer_document, FSInputFile(path), caption=item_caption)
+            await tg_call(message.answer_document, FSInputFile(path), **leftover_kwargs)
