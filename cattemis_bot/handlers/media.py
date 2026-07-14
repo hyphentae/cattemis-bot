@@ -98,7 +98,7 @@ async def _send_error(status: Message, url: str, exc: Exception) -> None:
     else:
         await safe_status_edit(
             status,
-            "Хозяин... простите, пожалуйста... при обработке ссылки что-то пошло не так... TᴖT",
+            "Хозяин... простите, пожалуйста... при обработке ссылки что-то пошло не так... T_T",
         )
 
 
@@ -129,7 +129,7 @@ async def _download_youtube_or_reddit(url: str):
 async def process_media_url(
     message: Message,
     url: str,
-    initial_status_text: str = "Хозяин, секундочку~ скачиваю... ˡ̆ᴗ̆ˡ",
+    initial_status_text: str = "Хозяин, секундочку~ скачиваю... :3",
 ) -> None:
     """Download media from *url* and send it to *message* as a reply."""
     status = await tg_call(message.answer, initial_status_text)
@@ -161,7 +161,7 @@ async def process_media_url(
             state.inc("ytdlp_downloads")
 
         async with state.get_lock(message.chat.id):
-            await safe_status_edit(status, "Хозяин, ловите~💖")
+            await safe_status_edit(status, "Хозяин, ловите~ 💖")
             await send_local_media(
                 message,
                 result.files,
@@ -178,7 +178,7 @@ async def process_media_url(
         state.inc("media_errors")
         await safe_status_edit(
             status,
-            "Хозяин... файл скачался, но Telegram не даёт его отправить... ну почему... (⁠눈›̈눈) "
+            "Хозяин... файл скачался, но Telegram не даёт его отправить... ну почему... (¬_¬) "
             "попробуй через веб напрямую~",
         )
 
@@ -187,14 +187,14 @@ async def process_media_url(
         await asyncio.sleep(float(exc.retry_after) + 1)
         await safe_status_edit(
             status,
-            "Хозяин... Telegram попросил меня подождать немножко~ попробуй ещё разочек ^^",
+            "Хозяин... Telegram попросил меня подождать немножко~ попробуй ещё разочек ^-^",
         )
 
     except asyncio.TimeoutError:
         state.inc("media_errors")
         await safe_status_edit(
             status,
-            "Хозяин... сервер отвечает слишком долго... п-попробуйте ещё раз, пожалуйста... (つ﹏<。)",
+            "Хозяин... сервер отвечает слишком долго... п-попробуйте ещё раз, пожалуйста... T_T",
         )
 
     except Exception as exc:
@@ -420,7 +420,7 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
         logger.error("[llm] error: %s", exc, exc_info=True)
         await tg_call(
             message.answer,
-            "Хозяин... я задумалась слишком сильно и уронила хвостиком... простите TᴖT",
+            "Хозяин... я задумалась слишком сильно и уронила хвостиком... простите T_T",
             reply_parameters=ReplyParameters(message_id=message.message_id),
             parse_mode=None,
         )

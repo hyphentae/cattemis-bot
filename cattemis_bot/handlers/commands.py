@@ -29,7 +29,7 @@ router = Router(name="commands")
 _HELP_TEXT = (
     "🐾 Cattemis Bot\n\n"
     "Скачиваю медиа из TikTok, Instagram, X/Twitter, "
-    "YouTube, Vimeo и прямых ссылок на фото/видео~ ˡ̆ᴗ̆ˡ\n\n"
+    "YouTube, Vimeo и прямых ссылок на фото/видео~ :3\n\n"
     "Команды:\n"
     "/help — показать это сообщение\n"
     "/ping — проверить, жив ли бот\n"
@@ -73,7 +73,7 @@ def format_stats() -> str:
     error_rate = (state.media_errors / media_total) * 100
 
     lines = [
-        "🐾 Статистика Cattemis~ ˡ̆ᴗ̆ˡ",
+        "🐾 Статистика Cattemis~ :3",
         "",
         f"⏱  Uptime          {uptime}",
         f"💬 Чатов           {len(state.unique_chats)}",
@@ -141,7 +141,7 @@ async def cmd_reset(message: Message) -> None:
     state.clear_history(message.chat.id)
     await tg_call(
         message.answer,
-        "Хозяин, я всё забыла~ теперь как новенькая ˡ̆ᴗ̆ˡ",
+        "Хозяин, я всё забыла~ теперь как новенькая :3",
         reply_parameters=ReplyParameters(message_id=message.message_id),
         parse_mode=None,
     )
@@ -167,7 +167,7 @@ async def cmd_say(message: Message) -> None:
     if not payload:
         await tg_call(
             message.answer,
-            "Хозяин... ты ничего не написал после команды (^..^)\u2743\n"
+            "Хозяин... ты ничего не написал после команды :3\n"
             "Использование: /say_cattemis текст\n"
             "Или ответь на сообщение командой /say_cattemis~",
         )

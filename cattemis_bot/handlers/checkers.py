@@ -236,16 +236,16 @@ def _status(game: CheckersGame) -> str:
     if game.over:
         if game.winner == P1:
             if game.vs_bot:
-                return "Хозяин ты победил! хехе~ (˵ ¬ᴗ¬˵)"
-            return f"🔴 <a href='tg://user?id={game.player1_id}'>хозяин</a> победил! хехе~ (˵ ¬ᴗ¬˵)"
+                return "Хозяин ты победил! хехе~ >:3"
+            return f"🔴 <a href='tg://user?id={game.player1_id}'>хозяин</a> победил! хехе~ >:3"
         if game.winner == P2:
             if game.vs_bot:
-                return "Хозяин я победила! хехе ¬⧊¬ один раз >ᴖ<"
-            return f"🔵 <a href='tg://user?id={game.player2_id}'>игрок 2</a> победил! хехе~ (˵ ¬ᴗ¬˵)"
-        return "ничья... вы оба молодцы ˡ̆ᴗ̆ˡ"
+                return "Хозяин я победила! хехе (¬_¬) один раз >w<"
+            return f"🔵 <a href='tg://user?id={game.player2_id}'>игрок 2</a> победил! хехе~ >:3"
+        return "ничья... вы оба молодцы :3"
     p_mark = "🔴" if game.current == P1 else "🔵"
     if game.vs_bot and game.current == P2:
-        return f"хозяин я думаю... {p_mark} ˡ̆ᴗ̆ˡ"
+        return f"хозяин я думаю... {p_mark} :3"
     pid = game.current_human_id()
     return f"ход {p_mark} — <a href='tg://user?id={pid}'>хозяин</a>~"
 
@@ -280,7 +280,7 @@ async def cmd_checkers(message: Message) -> None:
     await message.reply(
         "🔴🔵 шашки!\n"
         "хозяин ты за 🔴 (ходишь вверх), я за 🔵\n"
-        "нажми на свою шашку, затем на зёленую точку — ход~ ˡ̆ᴗ̆ˡ",
+        "нажми на свою шашку, затем на зёленую точку — ход~ :3",
         reply_markup=_build_keyboard(game),
         parse_mode="HTML",
     )
@@ -294,7 +294,7 @@ async def cb_chk_accept(call: CallbackQuery) -> None:
         await call.answer("этот вызов не для тебя~ :3", show_alert=True)
         return
     if chat_id not in _pending:
-        await call.answer("вызов уже устарел... (ˡ̆ᴗ̆ˡ)", show_alert=True)
+        await call.answer("вызов уже устарел... :3", show_alert=True)
         return
     challenger_id, challenged_id = _pending.pop(chat_id)
     game = CheckersGame(chat_id=chat_id, player1_id=challenger_id, player2_id=challenged_id)

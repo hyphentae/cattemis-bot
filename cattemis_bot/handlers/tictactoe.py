@@ -115,13 +115,13 @@ def _status_text(game: TicTacToeGame, winner: Optional[str] = None) -> str:
         emoji = winner
         if game.vs_bot:
             if winner == TicTacToeGame.X:
-                return f"{emoji} хозяин ты победил! хехе~ (˵ ¬ᴗ¬˵)"
-            return f"{emoji} хозяин я победила! хехе ¬⧊¬"
+                return f"{emoji} хозяин ты победил! хехе~ >:3"
+            return f"{emoji} хозяин я победила! хехе (¬_¬)"
         pid = game.player_x_id if winner == TicTacToeGame.X else game.player_o_id
-        return f"{emoji} <a href='tg://user?id={pid}'>хозяин</a> победил! хехе~ (˵ ¬ᴗ¬˵)"
+        return f"{emoji} <a href='tg://user?id={pid}'>хозяин</a> победил! хехе~ >:3"
     turn_mark = game.current
     if game.vs_bot and turn_mark == TicTacToeGame.O:
-        return f"хозяин я думаю... {turn_mark} ˡ̆ᴗ̆ˡ"
+        return f"хозяин я думаю... {turn_mark} :3"
     pid = game.current_player_id()
     return f"ход {turn_mark} — <a href='tg://user?id={pid}'>хозяин</a>~"
 
@@ -158,7 +158,7 @@ async def cmd_ttt(message: Message) -> None:
     await message.reply(
         "❌⭕ крестики-нолики!\n"
         "хозяин ты за ❌, я за ⭕\n"
-        "ход ❌ — твоя очередь~ ˡ̆ᴗ̆ˡ",
+        "ход ❌ — твоя очередь~ :3",
         reply_markup=_build_keyboard(game),
         parse_mode="HTML",
     )
@@ -172,7 +172,7 @@ async def cb_accept(call: CallbackQuery) -> None:
         await call.answer("этот вызов не для тебя~ :3", show_alert=True)
         return
     if chat_id not in _pending:
-        await call.answer("вызов уже устарел... (˶ᵔᵕᵔ˶)", show_alert=True)
+        await call.answer("вызов уже устарел... ^-^", show_alert=True)
         return
     challenger_id, challenged_id = _pending.pop(chat_id)
     game = TicTacToeGame(
@@ -205,7 +205,7 @@ async def cb_move(call: CallbackQuery) -> None:
         await call.answer("нет активной игры~ начни /ttt :3", show_alert=True)
         return
     if game.over:
-        await call.answer("игра уже закончена! ˡ̆ᴗ̆ˡ", show_alert=True)
+        await call.answer("игра уже закончена! :3", show_alert=True)
         return
     expected = game.current_player_id()
     if expected is not None and call.from_user.id != expected:
