@@ -168,4 +168,73 @@ async def cmd_ttt(message: Message) -> None:
 async def cb_accept(call: CallbackQuery) -> None:
     chat_id = call.message.chat.id
     expected_user_id = int(call.data.split(":")[1])
-    if call.from_user.id != expected_
+    if call.from_user.id != expected_user_id:
+        await call.answer("этот вызов не для тебя~ :3", show_alert=True)
+        return
+    if chat_id not in _pending:
+        await call.answer("вызов уже устарел... (˶ᵔᵕᵔ˶)", show_alert=True)
+        return
+    challenger_id, challenged_id = _pending.pop(chat_id)
+    game = TicTacToeGame(
+        chat_id=chat_id,
+        player_x_id=challenger_id,
+        player_o_id=challenged_id,
+    )
+    _games[chat_id] = game
+    await call.message.edit_text(
+        f"❌⭕ игра началась! хехе~\n"
+        f"<a href='tg://user?id={challenger_id}'>хозяин ❌</a> vs "
+        f"<a href='tg://user?id={challenged_id}'>хозяин ⭕</a>\n"
+        f"ход ❌~",
+        reply_markup=_build_keyboard(game),
+        parse_mode="HTML",
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data.startswith("ttt:"))
+async def cb_move(call: CallbackQuery) -> None:
+    chat_id = call.message.chat.id
+    payload = call.data.split(":")[1]
+    if payload == "noop":
+        await call.answer()
+        return
+    idx = int(payload)
+    game = _games.get(chat_id)
+    if game is None:
+        await call.answer("нет активной игры~ начни /ttt :3", show_alert=True)
+        return
+    if game.over:
+        await call.answer("игра уже закончена! ˡ̆ᴗ̆ˡ", show_alert=True)
+        return
+    expected = game.current_player_id()
+    if expected is not None and call.from_user.id != expected:
+        await call.answer("не твой ход хозяин~ :3", show_alert=True)
+        return
+    if not game.make_move(idx):
+        await call.answer("клетка занята!", show_alert=True)
+        return
+    winner = game.check_winner()
+    status = _status_text(game, winner)
+    if winner:
+        _games.pop(chat_id, None)
+        await call.message.edit_text(
+            f"❌⭕ крестики-нолики\n{status}",
+            reply_markup=_build_keyboard(game),
+            parse_mode="HTML",
+        )
+        await call.answer()
+        return
+    if game.vs_bot and game.current == TicTacToeGame.O:
+        bot_idx = game.bot_move()
+        game.make_move(bot_idx)
+        winner = game.check_winner()
+        status = _status_text(game, winner)
+        if winner:
+            _games.pop(chat_id, None)
+    await call.message.edit_text(
+        f"❌⭕ крестики-нолики\n{status}",
+        reply_markup=_build_keyboard(game),
+        parse_mode="HTML",
+    )
+    await call.answer()
