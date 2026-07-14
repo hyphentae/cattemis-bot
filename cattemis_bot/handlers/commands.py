@@ -29,14 +29,16 @@ router = Router(name="commands")
 _HELP_TEXT = (
     "🐾 Cattemis Bot\n\n"
     "Скачиваю медиа из TikTok, Instagram, X/Twitter, "
-    "YouTube, Vimeo и прямых ссылок на фото/видео.\n\n"
+    "YouTube, Vimeo и прямых ссылок на фото/видео~ ˡ̆ᴗ̆ˡ\n\n"
     "Команды:\n"
     "/help — показать это сообщение\n"
     "/ping — проверить, жив ли бот\n"
-    "/say_cattemis <text> — повторить текст от имени бота\n"
+    "/say_cattemis <текст> — повторить текст от имени бота\n"
     "/stats — статистика бота\n"
-    "/reset — очистить память диалога\n\n"
-    "Просто отправь ссылку — я попробую скачать."
+    "/reset — очистить память диалога\n"
+    "/ttt — крестики-нолики\n"
+    "/checkers — шашки\n\n"
+    "Просто отправь ссылку — я попробую скачать~ 💖"
 )
 
 
@@ -65,36 +67,36 @@ def _format_uptime(seconds: float) -> str:
 def format_stats() -> str:
     """Build a pretty /stats reply string from current state."""
     uptime = _format_uptime(time.time() - state.started_at)
-    media_total = state.media_total or 1  # avoid division by zero for rate
+    media_total = state.media_total or 1
 
     success = state.media_total - state.media_errors
     error_rate = (state.media_errors / media_total) * 100
 
     lines = [
-        "📊 Статистика Cattemis",
+        "🐾 Статистика Cattemis~ ˡ̆ᴗ̆ˡ",
         "",
         f"⏱  Uptime          {uptime}",
         f"💬 Чатов           {len(state.unique_chats)}",
         f"✉️  Сообщений       {state.messages_total}",
         f"🔧 Команд          {state.commands_used}",
         "",
-        "── Медиа ──────────────────────",
+        "── Медиа ───────────────────",
         f"📦 Всего           {state.media_total}",
         f"✅ Успешно         {success}",
         f"❌ Ошибок          {state.media_errors}  ({error_rate:.1f}%)",
         "",
-        "── По источникам ──────────────",
+        "── По источникам ───────────",
         f"🎵 TikTok          {state.tiktok_downloads}",
         f"📸 Instagram       {state.instagram_downloads}",
         f"🐦 Twitter/X       {state.twitter_downloads}",
-        f"🖼  Прямые ссылки  {state.direct_image_downloads}",
+        f"🖼️  Прямые ссылки  {state.direct_image_downloads}",
         f"📹 yt-dlp          {state.ytdlp_downloads}",
     ]
 
     if state.llm_calls or state.llm_errors:
         lines += [
             "",
-            "── LLM ────────────────────────",
+            "── LLM ────────────────────",
             f"🤖 Вызовов        {state.llm_calls}",
             f"💥 Ошибок         {state.llm_errors}",
         ]
@@ -117,7 +119,7 @@ async def cmd_help(message: Message) -> None:
 async def cmd_ping(message: Message) -> None:
     state.inc("commands_used")
     state.track_chat(message.chat.id)
-    await tg_call(message.answer, "pong 🏓")
+    await tg_call(message.answer, "мяу понг~ 🎵🐾")
 
 
 @router.message(Command("stats"))
@@ -139,7 +141,7 @@ async def cmd_reset(message: Message) -> None:
     state.clear_history(message.chat.id)
     await tg_call(
         message.answer,
-        "Память диалога для этого чата очищена, мяу~",
+        "Хозяин, я всё забыла~ теперь как новенькая ˡ̆ᴗ̆ˡ",
         reply_parameters=ReplyParameters(message_id=message.message_id),
         parse_mode=None,
     )
@@ -165,7 +167,9 @@ async def cmd_say(message: Message) -> None:
     if not payload:
         await tg_call(
             message.answer,
-            "Использование: /say_cattemis текст\nИли ответь на сообщение командой /say_cattemis",
+            "Хозяин... ты ничего не написал после команды (^..^)\u2743\n"
+            "Использование: /say_cattemis текст\n"
+            "Или ответь на сообщение командой /say_cattemis~",
         )
         return
 

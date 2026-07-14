@@ -108,11 +108,7 @@ async def _send_error(status: Message, url: str, exc: Exception) -> None:
 
 
 async def _download_youtube_or_reddit(url: str):
-    """Download YouTube/Reddit media, preferring Cobalt over yt-dlp.
-
-    Tries Cobalt first (free public instance). On ``error``, ``rate-limit``,
-    or an empty response, falls back to the existing yt-dlp path.
-    """
+    """Download YouTube/Reddit media, preferring Cobalt over yt-dlp."""
     if settings.cobalt_enabled:
         try:
             result = await with_retry(download_cobalt, url)
@@ -133,13 +129,9 @@ async def _download_youtube_or_reddit(url: str):
 async def process_media_url(
     message: Message,
     url: str,
-    initial_status_text: str = "Скачиваю...",
+    initial_status_text: str = "Хозяин, секундочку~ скачиваю... ˡ̆ᴗ̆ˡ",
 ) -> None:
-    """Download media from *url* and send it to *message*.
-
-    After a successful download the media is sent as a reply to *message*
-    (the message that contained the original URL).
-    """
+    """Download media from *url* and send it to *message* as a reply."""
     status = await tg_call(message.answer, initial_status_text)
     result = None
 
@@ -169,7 +161,7 @@ async def process_media_url(
             state.inc("ytdlp_downloads")
 
         async with state.get_lock(message.chat.id):
-            await safe_status_edit(status, "Отправляю...")
+            await safe_status_edit(status, "Хозяин, ловите~💖")
             await send_local_media(
                 message,
                 result.files,
@@ -186,7 +178,8 @@ async def process_media_url(
         state.inc("media_errors")
         await safe_status_edit(
             status,
-            "Хозяин, я все ещё хороший мальчик, но телеграм не дает отправить это видео (⁠눈⁠‸⁠눈⁠)",
+            "Хозяин... файл скачался, но Telegram не даёт его отправить... ну почему... (⁠눈›̈눈) "
+            "попробуй через веб напрямую~",
         )
 
     except TelegramRetryAfter as exc:
@@ -194,7 +187,7 @@ async def process_media_url(
         await asyncio.sleep(float(exc.retry_after) + 1)
         await safe_status_edit(
             status,
-            "Хозяин... Telegram попросил меня подождать немножко, попробуй ещё разочек ^^",
+            "Хозяин... Telegram попросил меня подождать немножко~ попробуй ещё разочек ^^",
         )
 
     except asyncio.TimeoutError:
@@ -260,11 +253,7 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
 # ---------------------------------------------------------------------------
 
 async def _build_media_context(media_source: Message, raw_text: str) -> str | None:
-    """Collect vision / whisper descriptions from *media_source*.
-
-    Returns a combined string (newline-separated) or ``None`` if nothing
-    could be extracted.
-    """
+    """Collect vision / whisper descriptions from *media_source*."""
     contexts: list[str] = []
     user_hint = raw_text or None
 
@@ -360,7 +349,10 @@ async def handle_link(message: Message) -> None:
         allowed_urls = [url for url in urls if is_allowed_media_link(url)]
         if not allowed_urls:
             if message.chat.type == "private":
-                await tg_call(message.answer, "Пришли мне ссылку на фото или видео.")
+                await tg_call(
+                    message.answer,
+                    "Хозяин... я умею скачивать только медиа :3 отправь ссылку на фото или видео~",
+                )
             return
         await process_media_url(message, allowed_urls[0])
         return
@@ -380,7 +372,10 @@ async def handle_link(message: Message) -> None:
     if message.chat.type == "private" and not (
         message.photo or message.video or message.voice or message.audio
     ):
-        await tg_call(message.answer, "Пришли мне ссылку на фото или видео.")
+        await tg_call(
+            message.answer,
+            "Хозяин... я умею скачивать только медиа :3 отправь ссылку на фото или видео~",
+        )
 
 
 async def _handle_llm(message: Message, raw_text: str) -> None:
@@ -425,7 +420,7 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
         logger.error("[llm] error: %s", exc, exc_info=True)
         await tg_call(
             message.answer,
-            "Хозяин... я задумался слишком сильно и не смог ответить TᴖT",
+            "Хозяин... я задумалась слишком сильно и уронила хвостиком... простите TᴖT",
             reply_parameters=ReplyParameters(message_id=message.message_id),
             parse_mode=None,
         )
