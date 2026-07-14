@@ -63,6 +63,8 @@ async def _on_startup() -> None:
         )
     else:
         logger.info("LLM disabled")
+
+
 # ---------------------------------------------------------------------------
 # Router registration
 # ---------------------------------------------------------------------------
@@ -71,11 +73,15 @@ def _register_routers() -> None:
     """Import and include all handler routers onto the Dispatcher."""
     from .handlers.commands import router as commands_router
     from .handlers.tictactoe import router as ttt_router
+    from .handlers.checkers import router as checkers_router
     from .handlers.media import router as media_router
 
     dp.include_router(commands_router)
-    dp.include_router(ttt_router)   # before media so LLM doesn't intercept /ttt
+    dp.include_router(ttt_router)       # before media so LLM doesn't intercept /ttt
+    dp.include_router(checkers_router)  # before media so LLM doesn't intercept /checkers
     dp.include_router(media_router)
+
+
 # ---------------------------------------------------------------------------
 # Main coroutine
 # ---------------------------------------------------------------------------
@@ -86,5 +92,7 @@ async def main() -> None:
     _register_routers()
     dp.startup.register(_on_startup)
     await dp.start_polling(bot)
+
+
 if __name__ == "__main__":
     asyncio.run(main())
