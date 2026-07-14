@@ -7,11 +7,14 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import random
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.filters import Command
 from aiogram.types import (
     CallbackQuery,
@@ -20,6 +23,7 @@ from aiogram.types import (
     Message,
 )
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 EMPTY   = "⬜"
@@ -33,6 +37,9 @@ SEL     = "🟡"
 
 P1 = "W"
 P2 = "B"
+
+# Minimum seconds between edit_text calls to avoid flood control
+_EDIT_COOLDOWN = 1.5
 
 
 def _is_dark(r: int, c: int) -> bool:
@@ -169,6 +176,21 @@ def _check_winner(board):
     return None
 
 
+async def _safe_edit(msg: Message, text: str, keyboard: InlineKeyboardMarkup) -> None:
+    """edit_text with RetryAfter handling and TelegramBadRequest suppression."""
+    try:
+        await msg.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    except TelegramRetryAfter as e:
+        await asyncio.sleep(float(e.retry_after) + 0.5)
+        try:
+            await msg.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+        except (TelegramRetryAfter, TelegramBadRequest) as inner:
+            logger.warning("[checkers] edit_text failed after retry: %s", inner)
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.warning("[checkers] edit_text bad request: %s", e)
+
+
 class CheckersGame:
     def __init__(self, chat_id, player1_id, player2_id):
         self.chat_id = chat_id
@@ -299,13 +321,13 @@ async def cb_chk_accept(call: CallbackQuery) -> None:
     challenger_id, challenged_id = _pending.pop(chat_id)
     game = CheckersGame(chat_id=chat_id, player1_id=challenger_id, player2_id=challenged_id)
     _games[chat_id] = game
-    await call.message.edit_text(
+    await _safe_edit(
+        call.message,
         f"🔴🔵 игра началась! хехе~\n"
         f"<a href='tg://user?id={challenger_id}'>🔴 хозяин 1</a> vs "
         f"<a href='tg://user?id={challenged_id}'>🔵 хозяин 2</a>\n"
         f"ход 🔴~",
-        reply_markup=_build_keyboard(game),
-        parse_mode="HTML",
+        _build_keyboard(game),
     )
     await call.answer()
 
@@ -328,7 +350,10 @@ async def cb_chk_select(call: CallbackQuery) -> None:
         await call.answer("у этой шашки нет ходов~ выбери другую :3", show_alert=True)
         return
     game.selected = (r, c)
-    await call.message.edit_reply_markup(reply_markup=_build_keyboard(game))
+    try:
+        await call.message.edit_reply_markup(reply_markup=_build_keyboard(game))
+    except (TelegramRetryAfter, TelegramBadRequest):
+        pass
     await call.answer()
 
 
@@ -352,42 +377,31 @@ async def cb_chk_move(call: CallbackQuery) -> None:
         game.over = True
         game.winner = winner
         _games.pop(chat_id, None)
-        await call.message.edit_text(
-            f"🔴🔵 шашки\n{_status(game)}",
-            reply_markup=_build_keyboard(game),
-            parse_mode="HTML",
-        )
+        await _safe_edit(call.message, f"🔴🔵 шашки\n{_status(game)}", _build_keyboard(game))
         await call.answer()
         return
     chain_caps = _get_captures(game.board, tr, tc, game.current)
     if chain_caps and abs(tr - fr) == 2:
         game.selected = (tr, tc)
-        await call.message.edit_text(
+        await _safe_edit(
+            call.message,
             f"🔴🔵 шашки\nхозяин, ещё можно бить! продолжай~ 🔴",
-            reply_markup=_build_keyboard(game),
-            parse_mode="HTML",
+            _build_keyboard(game),
         )
         await call.answer()
         return
     game.current = P2 if game.current == P1 else P1
     if game.vs_bot and game.current == P2:
-        await call.message.edit_text(
-            f"🔴🔵 шашки\n{_status(game)}",
-            reply_markup=_build_keyboard(game),
-            parse_mode="HTML",
-        )
+        await _safe_edit(call.message, f"🔴🔵 шашки\n{_status(game)}", _build_keyboard(game))
         await call.answer()
         await _do_bot_turn(call.message, game, chat_id)
         return
-    await call.message.edit_text(
-        f"🔴🔵 шашки\n{_status(game)}",
-        reply_markup=_build_keyboard(game),
-        parse_mode="HTML",
-    )
+    await _safe_edit(call.message, f"🔴🔵 шашки\n{_status(game)}", _build_keyboard(game))
     await call.answer()
 
 
-async def _do_bot_turn(msg, game: CheckersGame, chat_id: int) -> None:
+async def _do_bot_turn(msg: Message, game: CheckersGame, chat_id: int) -> None:
+    """Execute bot's turn(s) with rate-limit-safe edit_text calls."""
     while True:
         move = _bot_move(game.board)
         if move is None:
@@ -399,21 +413,16 @@ async def _do_bot_turn(msg, game: CheckersGame, chat_id: int) -> None:
             game.over = True
             game.winner = winner
             _games.pop(chat_id, None)
-            await msg.edit_text(
-                f"🔴🔵 шашки\n{_status(game)}",
-                reply_markup=_build_keyboard(game),
-                parse_mode="HTML",
-            )
+            await asyncio.sleep(_EDIT_COOLDOWN)
+            await _safe_edit(msg, f"🔴🔵 шашки\n{_status(game)}", _build_keyboard(game))
             return
         if abs(tr - fr) == 2 and _get_captures(game.board, tr, tc, P2):
+            # chain capture — apply next capture without extra edit
             continue
         break
     game.current = P1
-    await msg.edit_text(
-        f"🔴🔵 шашки\n{_status(game)}",
-        reply_markup=_build_keyboard(game),
-        parse_mode="HTML",
-    )
+    await asyncio.sleep(_EDIT_COOLDOWN)
+    await _safe_edit(msg, f"🔴🔵 шашки\n{_status(game)}", _build_keyboard(game))
 
 
 @router.callback_query(F.data == "chk:noop")
