@@ -1,343 +1,87 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#171525">
   <title>Cattemis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    :root {
-      --base:    #1e1e2e; --mantle:  #181825;
-      --surface0:#313244; --surface1:#45475a; --overlay0:#6c7086;
-      --text:    #cdd6f4; --subtext1:#bac2de;
-      --pink:    #f38ba8; --mauve:   #cba6f7;
-      --lavender:#b4befe; --teal:    #94e2d5; --yellow:  #f9e2af;
-      --green:   #a6e3a1; --red:     #f38ba8;
-    }
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-    body {
-      background: var(--base); color: var(--text);
-      font-family: 'Inter', system-ui, sans-serif;
-      min-height: 100vh; overflow-x: hidden;
-    }
-
-    .screen { display: none; flex-direction: column; align-items: center; min-height: 100vh; padding: 1.5rem 1.25rem; gap: 1rem; }
-    .screen.active { display: flex; }
-
-    /* zoom-in для меню */
-    @keyframes zoomIn {
-      from { opacity: 0; transform: scale(0.88); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    @keyframes zoomInDelay {
-      0%   { opacity: 0; transform: scale(0.88); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 24px color-mix(in srgb, var(--mauve) 30%, transparent); }
-      50%       { box-shadow: 0 0 38px color-mix(in srgb, var(--mauve) 55%, transparent); }
-    }
-    @keyframes popIn {
-      0%   { opacity: 0; transform: scale(0.7); }
-      65%  { transform: scale(1.08); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-
-    #screen-menu.active .avatar       { animation: popIn   0.45s cubic-bezier(.34,1.56,.64,1) both; }
-    #screen-menu.active .brand        { animation: zoomIn  0.3s 0.08s ease both; }
-    #screen-menu.active .user-chip    { animation: zoomIn  0.3s 0.14s ease both; }
-    #screen-menu.active .section-label{ animation: zoomIn  0.28s 0.18s ease both; }
-    #screen-menu.active .card:nth-child(1) { animation: zoomInDelay 0.32s 0.22s ease both; }
-    #screen-menu.active .card:nth-child(2) { animation: zoomInDelay 0.32s 0.30s ease both; }
-    #screen-menu.active .card:nth-child(3) { animation: zoomInDelay 0.32s 0.38s ease both; }
-
-    /* zoom для экрана игры */
-    #screen-ttt.active .back-btn    { animation: zoomIn 0.28s 0.00s ease both; }
-    #screen-ttt.active .score-row   { animation: zoomIn 0.28s 0.06s ease both; }
-    #screen-ttt.active .status-bar  { animation: zoomIn 0.28s 0.10s ease both; }
-    #screen-ttt.active .board       { animation: zoomIn 0.32s 0.14s ease both; }
-    #screen-ttt.active .restart-btn { animation: zoomIn 0.28s 0.20s ease both; }
-
-    /* --- MENU --- */
-    .avatar {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--mauve), var(--pink));
-      display: flex; align-items: center; justify-content: center; font-size: 2.2rem;
-      box-shadow: 0 0 24px color-mix(in srgb, var(--mauve) 30%, transparent);
-      margin-top: 0.5rem; animation: pulse 3s ease-in-out infinite;
-    }
-    .brand {
-      font-size: 1.6rem; font-weight: 700;
-      background: linear-gradient(90deg, var(--mauve), var(--lavender));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    .user-chip {
-      display: none; align-items: center; gap: 0.4rem;
-      background: var(--mantle); border: 1px solid var(--surface0);
-      border-radius: 999px; padding: 0.3rem 0.9rem 0.3rem 0.3rem;
-      font-size: 0.8rem; color: var(--subtext1); transition: border-color 0.2s;
-    }
-    .user-chip:hover { border-color: var(--surface1); }
-    .user-chip .dot {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--teal), var(--lavender));
-      display: flex; align-items: center; justify-content: center; font-size: 0.7rem;
-    }
-    .section-label { align-self: flex-start; font-size: 0.68rem; color: var(--overlay0); letter-spacing: 0.1em; text-transform: uppercase; width: 100%; max-width: 340px; }
-    .games { display: flex; flex-direction: column; gap: 0.65rem; width: 100%; max-width: 340px; }
-    .card {
-      background: var(--mantle); border: 1px solid var(--surface0);
-      border-radius: 14px; padding: 0.9rem 1.1rem;
-      display: flex; align-items: center; gap: 0.9rem; cursor: pointer;
-      transition: background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s;
-    }
-    .card:hover { background: var(--surface0); border-color: var(--surface1); transform: scale(1.02); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
-    .card:active { transform: scale(0.97); box-shadow: none; }
-    .card.disabled { opacity: 0.38; pointer-events: none; }
-    .card-icon {
-      width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
-      transition: transform 0.2s;
-    }
-    .card:hover .card-icon { transform: scale(1.12) rotate(-5deg); }
-    .ttt  .card-icon { background: color-mix(in srgb, var(--pink)   15%, transparent); }
-    .chk  .card-icon { background: color-mix(in srgb, var(--teal)   15%, transparent); }
-    .ches .card-icon { background: color-mix(in srgb, var(--yellow) 15%, transparent); }
-    .card-info { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
-    .card-info strong { font-size: 0.9rem; font-weight: 600; }
-    .card-info span { font-size: 0.74rem; color: var(--subtext1); }
-    .badge-soon { flex-shrink:0; background:var(--surface0); border:1px solid var(--surface1); border-radius:999px; padding:0.18rem 0.6rem; font-size:0.66rem; color:var(--overlay0); }
-
-    /* --- TTT --- */
-    .back-btn {
-      align-self: flex-start;
-      background: var(--mantle); border: 1px solid var(--surface0);
-      border-radius: 10px; padding: 0.4rem 0.9rem;
-      font-size: 0.82rem; color: var(--subtext1); cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, transform 0.1s;
-    }
-    .back-btn:hover { background: var(--surface0); border-color: var(--surface1); }
-    .back-btn:active { transform: scale(0.95); }
-    .status-bar {
-      font-size: 0.88rem; color: var(--subtext1);
-      background: var(--mantle); border: 1px solid var(--surface0);
-      border-radius: 10px; padding: 0.45rem 1.1rem;
-      text-align: center; width: 100%; max-width: 300px;
-      transition: border-color 0.25s, color 0.25s;
-    }
-    .status-bar.win  { border-color: var(--green);  color: var(--green); }
-    .status-bar.lose { border-color: var(--red);    color: var(--red); }
-    .status-bar.draw { border-color: var(--yellow); color: var(--yellow); }
-    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 300px; }
-    @keyframes cellZoom {
-      0%   { transform: scale(0); opacity: 0; }
-      60%  { transform: scale(1.15); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    .cell {
-      aspect-ratio: 1; border-radius: 14px;
-      background: var(--mantle); border: 1px solid var(--surface0);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, transform 0.1s;
-    }
-    .cell:hover:not(.x):not(.o) { background: var(--surface0); transform: scale(1.04); }
-    .cell:active { transform: scale(0.93); }
-    .cell svg { width: 52%; height: 52%; }
-    .cell.x svg { animation: cellZoom 0.28s cubic-bezier(.34,1.56,.64,1); }
-    .cell.o svg { animation: cellZoom 0.28s cubic-bezier(.34,1.56,.64,1); }
-    .cell.win-cell { border-color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
-    .restart-btn {
-      margin-top: 0.25rem;
-      background: linear-gradient(135deg, var(--mauve), var(--lavender));
-      border: none; border-radius: 12px; padding: 0.65rem 2rem;
-      font-size: 0.88rem; font-weight: 600; color: var(--base);
-      cursor: pointer; width: 100%; max-width: 300px;
-      font-family: 'Inter', system-ui, sans-serif;
-      transition: opacity 0.15s, transform 0.15s;
-    }
-    .restart-btn:hover { opacity: 0.9; transform: scale(1.02); }
-    .restart-btn:active { opacity: 0.8; transform: scale(0.97); }
-    .score-row { display: flex; gap: 0.75rem; width: 100%; max-width: 300px; }
-    .score-chip { flex: 1; background: var(--mantle); border: 1px solid var(--surface0); border-radius: 10px; padding: 0.5rem; text-align: center; }
-    .score-chip .label { font-size: 0.66rem; color: var(--overlay0); text-transform: uppercase; letter-spacing: 0.06em; }
-    .score-chip .val { font-size: 1.3rem; font-weight: 700; }
-    .score-chip .val.bump { animation: scoreB 0.3s cubic-bezier(.34,1.56,.64,1); }
-    @keyframes scoreB { 0%,100%{transform:scale(1)} 50%{transform:scale(1.35)} }
-    .score-chip.you .val  { color: var(--pink); }
-    .score-chip.bot .val  { color: var(--teal); }
-    .score-chip.draw .val { color: var(--yellow); }
-  </style>
+  <script src="app.js" defer></script>
 </head>
 <body>
+  <div class="orb orb-one"></div>
+  <div class="orb orb-two"></div>
 
-<!-- SVG иконки -->
-<svg style="display:none">
-  <symbol id="icon-x" viewBox="0 0 24 24">
-    <path fill="var(--pink)" d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4z"/>
-  </symbol>
-  <symbol id="icon-o" viewBox="0 0 24 24">
-    <path fill="var(--teal)" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-    <circle cx="12" cy="12" r="4" fill="var(--teal)" opacity="0.35"/>
-  </symbol>
-  <symbol id="icon-ttt" viewBox="0 0 24 24">
-    <path fill="var(--pink)" d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4z"/>
-  </symbol>
-</svg>
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="icon-x" viewBox="0 0 24 24">
+      <path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4z"/>
+    </symbol>
+    <symbol id="icon-o" viewBox="0 0 24 24">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+      <circle cx="12" cy="12" r="4" opacity=".35"/>
+    </symbol>
+  </svg>
 
-<!-- MENU -->
-<div class="screen active" id="screen-menu">
-  <div class="avatar">🐾</div>
-  <div class="brand">cattemis</div>
-  <div class="user-chip" id="user-chip"><div class="dot">👤</div><span id="user-name"></span></div>
-  <div class="section-label">игры</div>
-  <div class="games">
-    <div class="card ttt" onclick="showScreen('ttt')">
-      <div class="card-icon">
-        <svg viewBox="0 0 24 24" width="26" height="26"><use href="#icon-ttt"/></svg>
+  <section class="screen active" id="screen-menu">
+    <main class="panel menu-panel">
+      <div class="avatar" aria-hidden="true">🐾</div>
+      <header class="hero-copy">
+        <div class="eyebrow">telegram mini app</div>
+        <h1 class="brand">cattemis</h1>
+        <p class="tagline">маленькое место для больших перерывов</p>
+      </header>
+
+      <div class="user-chip" id="user-chip">
+        <div class="user-dot">👤</div>
+        <span id="user-name"></span>
       </div>
-      <div class="card-info"><strong>крестики-нолики</strong><span>против бота</span></div>
-    </div>
-    <div class="card chk disabled">
-      <div class="card-icon">🔴</div>
-      <div class="card-info"><strong>шашки</strong><span>скоро...</span></div>
-      <span class="badge-soon">soon</span>
-    </div>
-    <div class="card ches disabled">
-      <div class="card-icon">♟️</div>
-      <div class="card-info"><strong>шахматы</strong><span>скоро...</span></div>
-      <span class="badge-soon">soon</span>
-    </div>
-  </div>
-</div>
 
-<!-- TTT -->
-<div class="screen" id="screen-ttt">
-  <div class="back-btn" onclick="showScreen('menu')">← назад</div>
-  <div class="score-row">
-    <div class="score-chip you"><div class="label">ты</div><div class="val" id="score-you">0</div></div>
-    <div class="score-chip draw"><div class="label">ничья</div><div class="val" id="score-draw">0</div></div>
-    <div class="score-chip bot"><div class="label">бот</div><div class="val" id="score-bot">0</div></div>
-  </div>
-  <div class="status-bar" id="ttt-status">твой ход</div>
-  <div class="board" id="ttt-board"></div>
-  <button class="restart-btn" onclick="tttRestart()">новая игра</button>
-</div>
+      <div class="section-heading">
+        <h2 class="section-label">выбери игру</h2>
+        <span class="section-count">1 доступна</span>
+      </div>
 
-<script>
-  const tg = window.Telegram.WebApp;
-  tg.ready(); tg.expand();
-  const user = tg.initDataUnsafe?.user;
-  if (user) {
-    document.getElementById('user-name').textContent = user.first_name + (user.last_name ? ' ' + user.last_name : '');
-    document.getElementById('user-chip').style.display = 'flex';
-  }
+      <div class="games">
+        <button class="card ttt" id="open-ttt" type="button">
+          <span class="card-icon"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><use href="#icon-x"/></svg></span>
+          <span class="card-info"><strong>крестики-нолики</strong><small>сыграть против Кэттемис</small></span>
+          <span class="card-arrow">→</span>
+        </button>
+        <div class="card chk disabled" aria-disabled="true">
+          <div class="card-icon">🔴</div>
+          <div class="card-info"><strong>шашки</strong><small>готовим игровое поле</small></div>
+          <span class="badge-soon">скоро</span>
+        </div>
+        <div class="card ches disabled" aria-disabled="true">
+          <div class="card-icon">♟️</div>
+          <div class="card-info"><strong>шахматы</strong><small>учим кота дебютам</small></div>
+          <span class="badge-soon">скоро</span>
+        </div>
+      </div>
+    </main>
+  </section>
 
-  function showScreen(name) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const s = document.getElementById('screen-' + name);
-    // reflow trick to re-trigger animations
-    void s.offsetWidth;
-    s.classList.add('active');
-    if (name === 'ttt') tttRestart();
-  }
+  <section class="screen" id="screen-ttt">
+    <main class="panel game-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="back-menu" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>крестики-нолики</strong><span>ты играешь за крестики</span></div>
+      </header>
 
-  const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  let board, gameOver, scores = {you:0, bot:0, draw:0};
+      <div class="score-row">
+        <div class="score-chip you"><span>ты</span><strong id="score-you">0</strong></div>
+        <div class="score-chip draw"><span>ничья</span><strong id="score-draw">0</strong></div>
+        <div class="score-chip bot"><span>Кэттемис</span><strong id="score-bot">0</strong></div>
+      </div>
 
-  const SVG_X = `<svg viewBox="0 0 24 24"><use href="#icon-x"/></svg>`;
-  const SVG_O = `<svg viewBox="0 0 24 24"><use href="#icon-o"/></svg>`;
-
-  function tttRestart() {
-    board = Array(9).fill(null);
-    gameOver = false;
-    setStatus('твой ход', '');
-    renderBoard();
-  }
-
-  function renderBoard() {
-    const el = document.getElementById('ttt-board');
-    el.innerHTML = '';
-    board.forEach((v, i) => {
-      const cell = document.createElement('div');
-      cell.className = 'cell' + (v === 'X' ? ' x' : v === 'O' ? ' o' : '');
-      if (v === 'X') cell.innerHTML = SVG_X;
-      else if (v === 'O') cell.innerHTML = SVG_O;
-      cell.onclick = () => playerMove(i);
-      el.appendChild(cell);
-    });
-  }
-
-  function setStatus(text, cls) {
-    const el = document.getElementById('ttt-status');
-    el.textContent = text;
-    el.className = 'status-bar' + (cls ? ' ' + cls : '');
-  }
-
-  function checkWinner(b) {
-    for (const [a,c,d] of WINS) if (b[a] && b[a] === b[c] && b[a] === b[d]) return { winner: b[a], line: [a,c,d] };
-    if (b.every(Boolean)) return { winner: 'draw' };
-    return null;
-  }
-
-  function highlightWin(line) {
-    const cells = document.getElementById('ttt-board').children;
-    line.forEach(i => cells[i].classList.add('win-cell'));
-  }
-
-  function bumpScore(id) {
-    const el = document.getElementById(id);
-    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
-  }
-
-  function updateScore() {
-    document.getElementById('score-you').textContent  = scores.you;
-    document.getElementById('score-bot').textContent  = scores.bot;
-    document.getElementById('score-draw').textContent = scores.draw;
-  }
-
-  function playerMove(i) {
-    if (gameOver || board[i]) return;
-    board[i] = 'X'; renderBoard();
-    const res = checkWinner(board);
-    if (res) { endGame(res); return; }
-    setStatus('бот думает...', '');
-    setTimeout(() => {
-      const move = bestMove(board);
-      if (move !== -1) board[move] = 'O';
-      renderBoard();
-      const res2 = checkWinner(board);
-      if (res2) { endGame(res2); return; }
-      setStatus('твой ход', '');
-    }, 350);
-  }
-
-  function endGame(res) {
-    gameOver = true;
-    if (res.winner === 'X')      { scores.you++;  setStatus('🎉 ты победил!', 'win');  highlightWin(res.line); bumpScore('score-you'); }
-    else if (res.winner === 'O') { scores.bot++;  setStatus('🤖 бот победил', 'lose'); highlightWin(res.line); bumpScore('score-bot'); }
-    else                         { scores.draw++; setStatus('🤝 ничья', 'draw');              bumpScore('score-draw'); }
-    updateScore();
-  }
-
-  function minimax(b, isMax) {
-    const res = checkWinner(b);
-    if (res) { if (res.winner === 'O') return 10; if (res.winner === 'X') return -10; return 0; }
-    const sc = [];
-    b.forEach((v, i) => { if (!v) { b[i] = isMax ? 'O' : 'X'; sc.push(minimax(b, !isMax)); b[i] = null; } });
-    return isMax ? Math.max(...sc) : Math.min(...sc);
-  }
-
-  function bestMove(b) {
-    let best = -Infinity, move = -1;
-    b.forEach((v, i) => { if (!v) { b[i] = 'O'; const s = minimax(b, false); b[i] = null; if (s > best) { best = s; move = i; } } });
-    return move;
-  }
-
-  tttRestart();
-</script>
+      <div class="status-bar" id="ttt-status" aria-live="polite">твой ход</div>
+      <div class="board" id="ttt-board" role="grid" aria-label="Поле крестиков-ноликов"></div>
+      <button class="restart-btn" id="restart-ttt" type="button">сыграть заново</button>
+    </main>
+  </section>
 </body>
 </html>
