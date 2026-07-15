@@ -4,6 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cattemis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
@@ -17,13 +20,36 @@
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
     body {
       background: var(--base); color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
       min-height: 100vh; overflow-x: hidden;
     }
 
     /* --- SCREENS --- */
     .screen { display: none; flex-direction: column; align-items: center; min-height: 100vh; padding: 1.5rem 1.25rem; gap: 1rem; }
     .screen.active { display: flex; }
+
+    /* --- FADE IN --- */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0%   { opacity: 0; transform: scale(0.85); }
+      70%  { transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 24px color-mix(in srgb, var(--mauve) 30%, transparent); }
+      50%       { box-shadow: 0 0 38px color-mix(in srgb, var(--mauve) 55%, transparent); }
+    }
+
+    .screen.active .avatar    { animation: popIn  0.45s cubic-bezier(.34,1.56,.64,1) both; }
+    .screen.active .brand     { animation: fadeUp 0.35s 0.08s ease both; }
+    .screen.active .user-chip { animation: fadeUp 0.35s 0.14s ease both; }
+    .screen.active .section-label { animation: fadeUp 0.3s 0.18s ease both; }
+    .screen.active .card:nth-child(1) { animation: fadeUp 0.35s 0.22s ease both; }
+    .screen.active .card:nth-child(2) { animation: fadeUp 0.35s 0.30s ease both; }
+    .screen.active .card:nth-child(3) { animation: fadeUp 0.35s 0.38s ease both; }
 
     /* --- MENU --- */
     .avatar {
@@ -32,6 +58,7 @@
       display: flex; align-items: center; justify-content: center; font-size: 2.2rem;
       box-shadow: 0 0 24px color-mix(in srgb, var(--mauve) 30%, transparent);
       margin-top: 0.5rem;
+      animation: pulse 3s ease-in-out infinite;
     }
     .brand {
       font-size: 1.6rem; font-weight: 700;
@@ -43,7 +70,9 @@
       background: var(--mantle); border: 1px solid var(--surface0);
       border-radius: 999px; padding: 0.3rem 0.9rem 0.3rem 0.3rem;
       font-size: 0.8rem; color: var(--subtext1);
+      transition: border-color 0.2s;
     }
+    .user-chip:hover { border-color: var(--surface1); }
     .user-chip .dot {
       width: 22px; height: 22px; border-radius: 50%;
       background: linear-gradient(135deg, var(--teal), var(--lavender));
@@ -55,16 +84,27 @@
       background: var(--mantle); border: 1px solid var(--surface0);
       border-radius: 14px; padding: 0.9rem 1.1rem;
       display: flex; align-items: center; gap: 0.9rem;
-      cursor: pointer; transition: background 0.12s;
+      cursor: pointer;
+      transition: background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s;
     }
-    .card:active { background: var(--surface0); }
+    .card:hover {
+      background: var(--surface0); border-color: var(--surface1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+    .card:active { transform: scale(0.97); box-shadow: none; }
     .card.disabled { opacity: 0.38; pointer-events: none; }
-    .card-icon { width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+    .card-icon {
+      width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+      transition: transform 0.2s;
+    }
+    .card:hover .card-icon { transform: scale(1.1) rotate(-4deg); }
     .ttt  .card-icon { background: color-mix(in srgb, var(--pink)   15%, transparent); }
     .chk  .card-icon { background: color-mix(in srgb, var(--teal)   15%, transparent); }
     .ches .card-icon { background: color-mix(in srgb, var(--yellow) 15%, transparent); }
     .card-info { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
-    .card-info strong { font-size: 0.9rem; }
+    .card-info strong { font-size: 0.9rem; font-weight: 600; }
     .card-info span { font-size: 0.74rem; color: var(--subtext1); }
     .badge-soon { flex-shrink:0; background:var(--surface0); border:1px solid var(--surface1); border-radius:999px; padding:0.18rem 0.6rem; font-size:0.66rem; color:var(--overlay0); }
 
@@ -74,48 +114,73 @@
       background: var(--mantle); border: 1px solid var(--surface0);
       border-radius: 10px; padding: 0.4rem 0.9rem;
       font-size: 0.82rem; color: var(--subtext1); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
     }
-    .back-btn:active { background: var(--surface0); }
+    .back-btn:hover { background: var(--surface0); border-color: var(--surface1); }
+    .back-btn:active { transform: scale(0.95); }
+
     .status-bar {
       font-size: 0.88rem; color: var(--subtext1);
       background: var(--mantle); border: 1px solid var(--surface0);
       border-radius: 10px; padding: 0.45rem 1.1rem;
       text-align: center; width: 100%; max-width: 300px;
+      transition: border-color 0.25s, color 0.25s;
     }
-    .status-bar.win  { border-color: var(--green); color: var(--green); }
-    .status-bar.lose { border-color: var(--red);   color: var(--red); }
+    .status-bar.win  { border-color: var(--green);  color: var(--green); }
+    .status-bar.lose { border-color: var(--red);    color: var(--red); }
     .status-bar.draw { border-color: var(--yellow); color: var(--yellow); }
+
     .board {
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 8px; width: 100%; max-width: 300px;
+    }
+    @keyframes cellPop {
+      0%   { transform: scale(0); opacity: 0; }
+      70%  { transform: scale(1.15); }
+      100% { transform: scale(1);  opacity: 1; }
     }
     .cell {
       aspect-ratio: 1; border-radius: 14px;
       background: var(--mantle); border: 1px solid var(--surface0);
       display: flex; align-items: center; justify-content: center;
-      font-size: 2.2rem; cursor: pointer; transition: background 0.1s;
+      font-size: 2.2rem; cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, transform 0.1s;
     }
-    .cell:active { background: var(--surface0); }
-    .cell.x { color: var(--pink); }
-    .cell.o { color: var(--teal); }
-    .cell.win-cell { border-color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+    .cell:hover:not(.x):not(.o) { background: var(--surface0); transform: scale(1.04); }
+    .cell:active { transform: scale(0.93); }
+    .cell.x { color: var(--pink); animation: cellPop 0.25s cubic-bezier(.34,1.56,.64,1); }
+    .cell.o { color: var(--teal); animation: cellPop 0.25s cubic-bezier(.34,1.56,.64,1); }
+    .cell.win-cell {
+      border-color: var(--green);
+      background: color-mix(in srgb, var(--green) 10%, transparent);
+      animation: none;
+    }
+
     .restart-btn {
       margin-top: 0.25rem;
       background: linear-gradient(135deg, var(--mauve), var(--lavender));
       border: none; border-radius: 12px; padding: 0.65rem 2rem;
       font-size: 0.88rem; font-weight: 600; color: var(--base);
       cursor: pointer; width: 100%; max-width: 300px;
+      transition: opacity 0.15s, transform 0.15s;
+      font-family: 'Inter', system-ui, sans-serif;
     }
-    .restart-btn:active { opacity: 0.85; }
-    .score-row {
-      display: flex; gap: 0.75rem; width: 100%; max-width: 300px; justify-content: center;
-    }
+    .restart-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .restart-btn:active { opacity: 0.8; transform: scale(0.97); }
+
+    .score-row { display: flex; gap: 0.75rem; width: 100%; max-width: 300px; }
     .score-chip {
       flex: 1; background: var(--mantle); border: 1px solid var(--surface0);
       border-radius: 10px; padding: 0.5rem; text-align: center;
+      transition: border-color 0.2s;
     }
     .score-chip .label { font-size: 0.66rem; color: var(--overlay0); text-transform: uppercase; letter-spacing: 0.06em; }
-    .score-chip .val { font-size: 1.3rem; font-weight: 700; }
+    .score-chip .val {
+      font-size: 1.3rem; font-weight: 700;
+      transition: transform 0.2s;
+    }
+    .score-chip .val.bump { animation: scoreB 0.3s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes scoreB { 0%,100%{transform:scale(1)} 50%{transform:scale(1.35)} }
     .score-chip.you .val { color: var(--pink); }
     .score-chip.bot .val { color: var(--teal); }
     .score-chip.draw .val { color: var(--yellow); }
@@ -171,11 +236,11 @@
 
   function showScreen(name) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + name).classList.add('active');
+    const s = document.getElementById('screen-' + name);
+    s.classList.add('active');
     if (name === 'ttt') tttRestart();
   }
 
-  // ---- TIC TAC TOE ----
   const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   let board, gameOver, scores = {you:0, bot:0, draw:0};
 
@@ -215,6 +280,13 @@
     line.forEach(i => cells[i].classList.add('win-cell'));
   }
 
+  function bumpScore(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
   function updateScore() {
     document.getElementById('score-you').textContent  = scores.you;
     document.getElementById('score-bot').textContent  = scores.bot;
@@ -240,37 +312,23 @@
 
   function endGame(res) {
     gameOver = true;
-    if (res.winner === 'X') { scores.you++; setStatus('🎉 ты победил!', 'win'); highlightWin(res.line); }
-    else if (res.winner === 'O') { scores.bot++; setStatus('🤖 бот победил', 'lose'); highlightWin(res.line); }
-    else { scores.draw++; setStatus('🤝 ничья', 'draw'); }
+    if (res.winner === 'X')    { scores.you++;  setStatus('🎉 ты победил!', 'win');  highlightWin(res.line); bumpScore('score-you'); }
+    else if (res.winner === 'O') { scores.bot++;  setStatus('🤖 бот победил', 'lose'); highlightWin(res.line); bumpScore('score-bot'); }
+    else                         { scores.draw++; setStatus('🤝 ничья', 'draw');              bumpScore('score-draw'); }
     updateScore();
   }
 
-  // minimax
   function minimax(b, isMax) {
     const res = checkWinner(b);
     if (res) { if (res.winner === 'O') return 10; if (res.winner === 'X') return -10; return 0; }
-    const scores = [];
-    b.forEach((v, i) => {
-      if (!v) {
-        b[i] = isMax ? 'O' : 'X';
-        scores.push(minimax(b, !isMax));
-        b[i] = null;
-      }
-    });
-    return isMax ? Math.max(...scores) : Math.min(...scores);
+    const sc = [];
+    b.forEach((v, i) => { if (!v) { b[i] = isMax ? 'O' : 'X'; sc.push(minimax(b, !isMax)); b[i] = null; } });
+    return isMax ? Math.max(...sc) : Math.min(...sc);
   }
 
   function bestMove(b) {
     let best = -Infinity, move = -1;
-    b.forEach((v, i) => {
-      if (!v) {
-        b[i] = 'O';
-        const s = minimax(b, false);
-        b[i] = null;
-        if (s > best) { best = s; move = i; }
-      }
-    });
+    b.forEach((v, i) => { if (!v) { b[i] = 'O'; const s = minimax(b, false); b[i] = null; if (s > best) { best = s; move = i; } } });
     return move;
   }
 
