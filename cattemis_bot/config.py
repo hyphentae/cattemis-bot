@@ -30,45 +30,40 @@ class Settings(BaseSettings):
     llm_cooldown_seconds: float = 5.0
     llm_max_tokens: int = 480
     llm_temperature: float = 0.6
+    llm_web_search_enabled: bool = False
+    llm_web_search_max_results: int = 5
 
     # --- Vision (photo / video understanding via LLM) ---
     vision_enabled: bool = False
-    """Enable vision: send images/video frames to the LLM for description."""
     vision_prompt: str = (
         "Опиши медиа кратко и по делу на русском: что видно, важные детали, "
         "текст на изображении если читается. Не выдумывай."
     )
-    """System prompt used when asking the model to describe media."""
 
     # --- Whisper (voice / audio transcription) ---
     whisper_enabled: bool = False
-    """Enable Whisper transcription for voice messages, audio files and video audio."""
     whisper_model_size: str = "base"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
 
     # --- Cobalt (free primary downloader for YouTube / Reddit) ---
     cobalt_enabled: bool = True
-    """Enable Cobalt as the primary downloader for YouTube/Reddit links."""
     cobalt_api_url: str = "https://capi.3kh0.net"
-    """Base URL of the Cobalt API instance (no trailing slash needed)."""
 
     # --- Downloader limits ---
     max_media_items: int = 10
-    """Maximum number of media files per download batch."""
-
     retry_attempts: int = 2
     retry_delay: float = 1.2
 
     # --- Misc ---
     admin_cache_ttl: int = 60
-    """Seconds to cache admin lists for a chat."""
-
     max_history_messages: int = 8
-    """Number of chat history messages passed to LLM context."""
-
     max_file_size: int = 50 * 1024 * 1024
-    """Maximum file size in bytes accepted by Telegram (50 MB)."""
+
+    # --- Web / Telegram Mini App ---
+    web_enabled: bool = True
+    web_port: int = 8080
+    use_cloudflare: bool = True
 
     class Config:
         env_file = ".env"
