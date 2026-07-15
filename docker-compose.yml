@@ -1,8 +1,36 @@
+volumes:
+  tunnel:
+
 services:
-  cattemis:
+
+  web:
+    build: web/server
+    restart: unless-stopped
+    volumes:
+      - ./web/static:/static:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  cloudflared:
+    build: cloudflared
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - tunnel:/tunnel
+
+  bot:
     build: .
     restart: unless-stopped
     env_file: .env
+    depends_on:
+      - cloudflared
+    volumes:
+      - tunnel:/tunnel:ro
     deploy:
       resources:
         limits:

@@ -1,0 +1,11 @@
+# --- build ---
+FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY main.go .
+RUN go mod init webserver && go build -o webserver .
+
+# --- run (scratch = ~0MB overhead) ---
+FROM scratch
+COPY --from=builder /app/webserver /webserver
+EXPOSE 8080
+ENTRYPOINT ["/webserver"]

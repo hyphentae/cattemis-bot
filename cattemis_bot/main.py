@@ -1,25 +1,14 @@
-"""Entry point for Cattemis Bot.
-
-Run from the folder that *contains* cattemis_bot/:
-
-    python -m cattemis_bot.main
-
-Or use the run.py launcher placed next to the cattemis_bot/ folder:
-
-    python run.py
-"""
+"""Entry point for Cattemis Bot."""
 
 import asyncio
 import logging
+import os
 
 from aiogram import Bot, Dispatcher
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
 from .config import settings
 from .state import state
-
-# ---------------------------------------------------------------------------
-# Logging setup
-# ---------------------------------------------------------------------------
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,28 +17,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Bot / Dispatcher singletons
-# ---------------------------------------------------------------------------
-
 bot = Bot(token=settings.bot_token)
 dp = Dispatcher()
-
-# ---------------------------------------------------------------------------
-# Startup banner
-# ---------------------------------------------------------------------------
 
 _BANNER = """\
 ┌──────────────────────────────────────────────┐
 │   🐾 Cattemis bot started! Meow meow meow    │
 └──────────────────────────────────────────────┘"""
 
-# ---------------------------------------------------------------------------
-# Startup hook
-# ---------------------------------------------------------------------------
 
 async def _on_startup() -> None:
-    """Populate bot identity cache on startup."""
     me = await bot.get_me()
     state.bot_username = (me.username or "").lower()
     state.bot_id = me.id
@@ -57,37 +34,37 @@ async def _on_startup() -> None:
     if settings.llm_enabled:
         logger.info(
             "LLM enabled — base_url=%s model=%s cooldown=%.1fs",
-            settings.llm_base_url,
-            settings.llm_model,
-            settings.llm_cooldown_seconds,
+            settings.llm_base_url, settings.llm_model, settings.llm_cooldown_seconds,
         )
     else:
         logger.info("LLM disabled")
 
+    if settings.use_cloudflare:
+        from .tunnel import wait_for_tunnel_url
+        url = await wait_for_tunnel_url(timeout=60)
+        if url:
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="Открыть",
+                    web_app=WebAppInfo(url=url),
+                )
+            )
+            logger.info("[tunnel] Mini App button set to %s", url)
 
-# ---------------------------------------------------------------------------
-# Router registration
-# ---------------------------------------------------------------------------
 
 def _register_routers() -> None:
-    """Import and include all handler routers onto the Dispatcher."""
     from .handlers.commands import router as commands_router
     from .handlers.tictactoe import router as ttt_router
     from .handlers.checkers import router as checkers_router
     from .handlers.media import router as media_router
 
     dp.include_router(commands_router)
-    dp.include_router(ttt_router)       # before media so LLM doesn't intercept /ttt
-    dp.include_router(checkers_router)  # before media so LLM doesn't intercept /checkers
+    dp.include_router(ttt_router)
+    dp.include_router(checkers_router)
     dp.include_router(media_router)
 
 
-# ---------------------------------------------------------------------------
-# Main coroutine
-# ---------------------------------------------------------------------------
-
 async def main() -> None:
-    """Initialise and run the bot."""
     print(_BANNER)
     _register_routers()
     dp.startup.register(_on_startup)
