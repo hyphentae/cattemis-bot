@@ -4,8 +4,7 @@ Wraps an OpenAI-compatible API (Ollama by default) with:
 - Per-request cooldown to avoid spamming the backend.
 - Per-chat message history trimming.
 - Output post-processing (emoji removal, kaomoji repair).
-- Optional media_context (vision / whisper descriptions) injected into
-  the user turn so the model can reason about photos, videos and audio.
+- Optional media_context (Whisper transcriptions) injected into the user turn.
 
 The ``ask_llm`` coroutine is the single public interface.
 """
@@ -90,9 +89,7 @@ async def ask_llm(
         chat_id:       Telegram chat id (used for per-chat history).
         user_text:     The user's message text.
         user_name:     Display name prepended to the user turn.
-        media_context: Optional description of attached media (from vision /
-                       whisper). When provided it is appended to the user turn
-                       so the model can reason about the media.
+        media_context: Optional transcription of attached audio/video.
 
     Returns:
         The cleaned assistant reply, or ``"..."`` if the model returned nothing.

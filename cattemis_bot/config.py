@@ -33,22 +33,11 @@ class Settings(BaseSettings):
     llm_web_search_enabled: bool = False
     llm_web_search_max_results: int = 5
 
-    # --- Vision (photo / video understanding via LLM) ---
-    vision_enabled: bool = False
-    vision_prompt: str = (
-        "Опиши медиа кратко и по делу на русском: что видно, важные детали, "
-        "текст на изображении если читается. Не выдумывай."
-    )
-
     # --- Whisper (voice / audio transcription) ---
     whisper_enabled: bool = False
     whisper_model_size: str = "base"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
-
-    # --- Cobalt (free primary downloader for YouTube / Reddit) ---
-    cobalt_enabled: bool = True
-    cobalt_api_url: str = "https://capi.3kh0.net"
 
     # --- Downloader limits ---
     max_media_items: int = 10

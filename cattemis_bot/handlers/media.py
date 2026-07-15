@@ -15,7 +15,6 @@ from aiogram.utils.chat_action import ChatActionSender
 
 from ..config import settings
 from ..downloaders import with_retry
-from ..downloaders.cobalt import CobaltError, download_cobalt
 from ..downloaders.direct import download_direct_image, is_direct_image
 from ..downloaders.instagram import download_instagram_apify, is_instagram
 from ..downloaders.tiktok import download_tiktok, is_tiktok
@@ -27,8 +26,7 @@ from ..state import state
 from ..utils.media import send_local_media
 from ..utils.telegram import safe_delete_message, safe_status_edit, tg_call
 from ..utils.text import extract_urls_from_message, truncate
-from ..vision import (
-    describe_media_with_vision,
+from ..whisper import (
     download_telegram_file,
     extract_audio_from_video_bytes,
     transcribe_audio_with_whisper,
@@ -103,20 +101,12 @@ async def _send_error(status: Message, url: str, exc: Exception) -> None:
 
 
 # ---------------------------------------------------------------------------
-# YouTube / Reddit: Cobalt primary, yt-dlp fallback
+# YouTube / Reddit
 # ---------------------------------------------------------------------------
 
 
 async def _download_youtube_or_reddit(url: str):
-    """Download YouTube/Reddit media, preferring Cobalt over yt-dlp."""
-    if settings.cobalt_enabled:
-        try:
-            result = await with_retry(download_cobalt, url)
-            state.inc("cobalt_downloads")
-            return result
-        except CobaltError as exc:
-            logger.info("[cobalt] falling back to yt-dlp for %s: %s", url, exc)
-
+    """Download YouTube/Reddit media via yt-dlp."""
     result = await with_retry(download_ytdlp, url)
     state.inc("ytdlp_downloads")
     return result
@@ -249,44 +239,20 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Media context builder (vision + whisper)
+# Media context builder (Whisper)
 # ---------------------------------------------------------------------------
 
 async def _build_media_context(media_source: Message, raw_text: str) -> str | None:
-    """Collect vision / whisper descriptions from *media_source*."""
+    """Collect Whisper transcriptions from *media_source*."""
     contexts: list[str] = []
-    user_hint = raw_text or None
-
-    # --- Photo ---
-    if media_source.photo and settings.vision_enabled:
-        photo = media_source.photo[-1]
-        try:
-            media_bytes, suffix = await download_telegram_file(photo.file_id, "photo.jpg")
-            desc = await describe_media_with_vision(media_bytes, suffix, user_hint)
-            if desc:
-                contexts.append(f"Фото: {desc}")
-        except Exception as exc:
-            logger.warning("[vision] photo error: %s", exc)
 
     # --- Video ---
-    elif media_source.video:
-        if settings.vision_enabled:
+    if media_source.video and settings.whisper_enabled:
+        try:
+            media_bytes, suffix = await download_telegram_file(
+                media_source.video.file_id, "video.mp4"
+            )
             try:
-                media_bytes, suffix = await download_telegram_file(
-                    media_source.video.file_id, "video.mp4"
-                )
-                desc = await describe_media_with_vision(media_bytes, suffix, user_hint)
-                if desc:
-                    contexts.append(f"Видео: {desc}")
-            except Exception as exc:
-                logger.warning("[vision] video error: %s", exc)
-
-        if settings.whisper_enabled:
-            try:
-                if not settings.vision_enabled:
-                    media_bytes, suffix = await download_telegram_file(
-                        media_source.video.file_id, "video.mp4"
-                    )
                 extracted_audio, audio_suffix = await extract_audio_from_video_bytes(
                     media_bytes, suffix or ".mp4"
                 )
@@ -298,6 +264,8 @@ async def _build_media_context(media_source: Message, raw_text: str) -> str | No
                         contexts.append(f"Аудио из видео: {transcript}")
             except Exception as exc:
                 logger.warning("[whisper] video audio error: %s", exc)
+        except Exception as exc:
+            logger.warning("[whisper] video download error: %s", exc)
 
     # --- Voice ---
     elif media_source.voice and settings.whisper_enabled:
@@ -379,7 +347,7 @@ async def handle_link(message: Message) -> None:
 
 
 async def _handle_llm(message: Message, raw_text: str) -> None:
-    """Invoke the LLM and reply, collecting vision/whisper context first."""
+    """Invoke the LLM and reply, collecting Whisper context first."""
     from ..main import bot  # lazy import to avoid circular dep
 
     try:

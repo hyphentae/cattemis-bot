@@ -13,7 +13,7 @@ cattemis_bot/
 ├── state.py             # Global BotState dataclass (counters, caches, locks)
 ├── llm.py               # ask_llm + human-readable error helpers
 ├── moderation.py        # moderate_links, is_admin_message, is_allowed_media_link
-├── artists.py           # ArtistLink dataclass, load_artists_config, random_artist_link
+├── whisper.py           # Telegram file download, video audio extraction, Whisper transcription
 ├── utils/
 │   ├── __init__.py      # Re-exports most-used helpers
 │   ├── media.py         # Extension sets, guess_ext_from_content_type, send_local_media
@@ -28,8 +28,7 @@ cattemis_bot/
 │   └── ytdlp.py         # download_ytdlp (yt-dlp, executor thread)
 └── handlers/
     ├── __init__.py
-    ├── commands.py      # /help /ping /stats /reset /say_cattemis /artists
-    ├── art.py           # /art /gamble_cattemis /artist
+    ├── commands.py      # /help /ping /stats /reset /say_cattemis
     └── media.py         # process_media_url + catch-all handle_link
 ```
 
@@ -61,28 +60,6 @@ All variables can be set in a `.env` file in the project root or as real environ
 
 ---
 
-## artists.json format
-
-Place `artists.json` alongside `main.py`:
-
-```json
-{
-  "artists": [
-    {
-      "id": "artist_handle",
-      "label": "Display Name",
-      "enabled": true,
-      "urls": [
-        "https://example.com/art1.jpg",
-        "https://twitter.com/artist/status/123456789"
-      ]
-    }
-  ]
-}
-```
-
-`enabled` defaults to `true` if omitted.
-
 ---
 
 ## Running
@@ -106,10 +83,6 @@ python -m cattemis_bot.main
 |---|---|
 | `/help` | Show help message |
 | `/ping` | Liveness check — responds with `pong 🏓` |
-| `/art` | Send a random artwork |
-| `/gamble_cattemis` | Alias for `/art` |
-| `/artist <id>` | Send a random artwork by the given artist ID |
-| `/artists` | List all available artist IDs |
 | `/say_cattemis <text>` | Bot repeats your text (admin-only in groups) |
 | `/stats` | Show runtime statistics |
 | `/reset` | Clear LLM conversation history for this chat |
