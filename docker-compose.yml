@@ -8,18 +8,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./web/static:/static:ro
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
   cloudflared:
     build: cloudflared
     restart: unless-stopped
     depends_on:
-      web:
-        condition: service_healthy
+      - web
     volumes:
       - tunnel:/tunnel
 
