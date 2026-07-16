@@ -6,7 +6,7 @@ Exports the shared ``DownloadResult`` dataclass and the ``with_retry`` /
 
 import asyncio
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import aiohttp
 

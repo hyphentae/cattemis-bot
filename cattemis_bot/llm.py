@@ -82,6 +82,7 @@ async def ask_llm(
     user_text: str,
     user_name: str | None = None,
     media_context: str | None = None,
+    image_data_url: str | None = None,
 ) -> str:
     """Send *user_text* to the LLM and return the assistant reply.
 
@@ -90,6 +91,7 @@ async def ask_llm(
         user_text:     The user's message text.
         user_name:     Display name prepended to the user turn.
         media_context: Optional transcription of attached audio/video.
+        image_data_url: Optional image encoded as a data URL for multimodal models.
 
     Returns:
         The cleaned assistant reply, or ``"..."`` if the model returned nothing.
@@ -105,10 +107,17 @@ async def ask_llm(
     else:
         user_content = f"{display_name}: {user_text}"
 
+    user_message_content: str | list[dict[str, object]] = user_content
+    if image_data_url:
+        user_message_content = [
+            {"type": "text", "text": user_content},
+            {"type": "image_url", "image_url": {"url": image_data_url}},
+        ]
+
     messages = [
         {"role": "system", "content": settings.llm_system_prompt},
         *history,
-        {"role": "user", "content": user_content},
+        {"role": "user", "content": user_message_content},
     ]
 
     await asyncio.sleep(settings.llm_cooldown_seconds)

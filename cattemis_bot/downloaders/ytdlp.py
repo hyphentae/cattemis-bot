@@ -115,7 +115,7 @@ async def download_ytdlp(url: str) -> DownloadResult:
     try:
         loop = asyncio.get_running_loop()
         file_path, title = await loop.run_in_executor(None, _download_sync, url, tmpdir)
-        return DownloadResult(files=[file_path], caption=title, _tmpdir=tmpdir)
+        return DownloadResult(files=[str(file_path)], caption=title, temp_dir=tmpdir)
     except Exception:
         shutil.rmtree(tmpdir, ignore_errors=True)
         raise

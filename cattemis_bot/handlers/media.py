@@ -1,14 +1,17 @@
-"""Media URL processing and general message handler for Cattemis Bot.
+"""Media URL and explicitly addressed LLM message handling for Cattemis Bot.
 
 Registers:
 - ``process_media_url`` — download + send a single media URL.
-- ``handle_link``       — the catch-all message handler (media or LLM).
+- ``handle_media_link`` — process messages containing URLs.
+- ``handle_llm_message`` — process private or explicitly addressed LLM messages.
 """
 
 import asyncio
+import base64
 import logging
 
 from aiogram import Router
+from aiogram.filters import BaseFilter
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.types import InputMediaPhoto, Message, ReplyParameters
 from aiogram.utils.chat_action import ChatActionSender
@@ -119,7 +122,7 @@ async def _download_youtube_or_reddit(url: str):
 async def process_media_url(
     message: Message,
     url: str,
-    initial_status_text: str = "Хозяин, секундочку~ скачиваю... :3",
+    initial_status_text: str = "Скачиваю... :3",
 ) -> None:
     """Download media from *url* and send it to *message* as a reply."""
     status = await tg_call(message.answer, initial_status_text)
@@ -151,7 +154,7 @@ async def process_media_url(
             state.inc("ytdlp_downloads")
 
         async with state.get_lock(message.chat.id):
-            await safe_status_edit(status, "Хозяин, ловите~ 💖")
+            await safe_status_edit(status, "Отправляю...")
             await send_local_media(
                 message,
                 result.files,
@@ -294,13 +297,66 @@ async def _build_media_context(media_source: Message, raw_text: str) -> str | No
     return "\n\n".join(contexts) if contexts else None
 
 
+async def _build_media_image(media_source: Message) -> str | None:
+    """Return an attached photo or video thumbnail as a safe inline data URL."""
+    file_id: str | None = None
+    filename = "image.jpg"
+    if media_source.photo:
+        file_id = media_source.photo[-1].file_id
+    elif media_source.video and media_source.video.thumbnail:
+        file_id = media_source.video.thumbnail.file_id
+        filename = "video-thumbnail.jpg"
+
+    if not file_id:
+        return None
+    try:
+        image_bytes, suffix = await download_telegram_file(file_id, filename)
+        mime = "image/png" if (suffix or "").lower() == ".png" else "image/jpeg"
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+    except Exception as exc:
+        logger.warning("[media] image download error: %s", exc)
+        return None
+
+
 # ---------------------------------------------------------------------------
-# General message handler
+# Targeted message handlers
 # ---------------------------------------------------------------------------
 
-@router.message()
-async def handle_link(message: Message) -> None:
-    """Catch-all handler: moderate links, process media, or use LLM."""
+
+class HasURLsFilter(BaseFilter):
+    """Match non-command messages containing at least one URL."""
+
+    async def __call__(self, message: Message) -> bool:
+        raw_text = (message.text or message.caption or "").strip()
+        return not raw_text.startswith("/") and bool(extract_urls_from_message(message))
+
+
+class LLMMessageFilter(BaseFilter):
+    """Match only messages that should be passed to the configured LLM."""
+
+    async def __call__(self, message: Message) -> bool:
+        if not settings.llm_enabled:
+            return False
+
+        raw_text = (message.text or message.caption or "").strip()
+        if raw_text.startswith("/") or extract_urls_from_message(message):
+            return False
+
+        has_media = bool(message.photo or message.video or message.voice or message.audio)
+        if not raw_text and not has_media:
+            return False
+
+        if message.chat.type == "private":
+            return True
+
+        # An attachment alone must not summon the bot in a group.
+        return await _is_reply_to_this_bot(message) or await _is_bot_mentioned(message)
+
+
+@router.message(HasURLsFilter())
+async def handle_media_link(message: Message) -> None:
+    """Moderate and process messages containing media links."""
     state.inc("messages_total")
     state.track_chat(message.chat.id)
 
@@ -308,42 +364,25 @@ async def handle_link(message: Message) -> None:
     if deleted:
         return
 
+    allowed_urls = [url for url in urls if is_allowed_media_link(url)]
+    if not allowed_urls:
+        if message.chat.type == "private":
+            await tg_call(
+                message.answer,
+                "Хозяин... я умею скачивать только медиа :3 отправь ссылку на фото или видео~",
+            )
+        return
+
+    await process_media_url(message, allowed_urls[0])
+
+
+@router.message(LLMMessageFilter())
+async def handle_llm_message(message: Message) -> None:
+    """Pass an eligible message to the LLM."""
+    state.inc("messages_total")
+    state.track_chat(message.chat.id)
     raw_text = (message.text or message.caption or "").strip()
-
-    if raw_text.startswith("/"):
-        return
-
-    if urls:
-        allowed_urls = [url for url in urls if is_allowed_media_link(url)]
-        if not allowed_urls:
-            if message.chat.type == "private":
-                await tg_call(
-                    message.answer,
-                    "Хозяин... я умею скачивать только медиа :3 отправь ссылку на фото или видео~",
-                )
-            return
-        await process_media_url(message, allowed_urls[0])
-        return
-
-    if not raw_text and not (message.photo or message.video or message.voice or message.audio):
-        return
-
-    should_use_llm = settings.llm_enabled and message.chat.type == "private"
-    if not should_use_llm and settings.llm_enabled:
-        if await _is_reply_to_this_bot(message) or await _is_bot_mentioned(message):
-            should_use_llm = True
-
-    if should_use_llm:
-        await _handle_llm(message, raw_text)
-        return
-
-    if message.chat.type == "private" and not (
-        message.photo or message.video or message.voice or message.audio
-    ):
-        await tg_call(
-            message.answer,
-            "Хозяин... я умею скачивать только медиа :3 отправь ссылку на фото или видео~",
-        )
+    await _handle_llm(message, raw_text)
 
 
 async def _handle_llm(message: Message, raw_text: str) -> None:
@@ -361,12 +400,20 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
             )
             media_source = message if has_own_media else (message.reply_to_message or message)
 
-            media_context = await _build_media_context(media_source, raw_text)
+            media_context, image_data_url = await asyncio.gather(
+                _build_media_context(media_source, raw_text),
+                _build_media_image(media_source),
+            )
 
-            if not raw_text and not media_context:
+            if not raw_text and not media_context and not image_data_url:
                 return
 
-            reply_input = raw_text or "Пользователь прислал медиа. Ответь по описанию."
+            if raw_text:
+                reply_input = raw_text
+            elif media_source.photo:
+                reply_input = "Пользователь прислал фотографию. Кратко отреагируй на неё."
+            else:
+                reply_input = "Пользователь прислал видео. Ответь по доступному превью и расшифровке."
 
             state.inc("llm_calls")
             reply = await ask_llm(
@@ -374,6 +421,7 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
                 reply_input,
                 user_name=message.from_user.first_name if message.from_user else None,
                 media_context=media_context,
+                image_data_url=image_data_url,
             )
 
         reply = reply.strip()[:4000] or "..."
@@ -388,7 +436,7 @@ async def _handle_llm(message: Message, raw_text: str) -> None:
         logger.error("[llm] error: %s", exc, exc_info=True)
         await tg_call(
             message.answer,
-            "Хозяин... я задумалась слишком сильно и уронила хвостиком... простите T_T",
+            "Хозяин... я задумался слишком сильно и уронил хвостиком... простите T_T",
             reply_parameters=ReplyParameters(message_id=message.message_id),
             parse_mode=None,
         )
