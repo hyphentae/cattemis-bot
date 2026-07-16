@@ -1,13 +1,22 @@
 volumes:
   tunnel:
+  canvas:
 
 services:
+
+  parabolic:
+    build: web/parabolic
+    restart: unless-stopped
 
   web:
     build: web/server
     restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - parabolic
     volumes:
       - ./web/static:/static:ro
+      - canvas:/data
 
   cloudflared:
     build: cloudflared
@@ -16,13 +25,20 @@ services:
       - web
     volumes:
       - tunnel:/tunnel
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /tunnel/url.txt && grep -Eq '^https://[a-z0-9-]+\\.trycloudflare\\.com$' /tunnel/url.txt"]
+      interval: 2s
+      timeout: 1s
+      retries: 45
+      start_period: 2s
 
   bot:
     build: .
     restart: unless-stopped
     env_file: .env
     depends_on:
-      - cloudflared
+      cloudflared:
+        condition: service_healthy
     volumes:
       - tunnel:/tunnel:ro
     deploy:

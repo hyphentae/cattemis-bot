@@ -54,11 +54,13 @@ async def _on_startup() -> None:
 
 def _register_routers() -> None:
     from .handlers.commands import router as commands_router
+    from .handlers.games import router as games_router
     from .handlers.tictactoe import router as ttt_router
     from .handlers.checkers import router as checkers_router
     from .handlers.media import router as media_router
 
     dp.include_router(commands_router)
+    dp.include_router(games_router)
     dp.include_router(ttt_router)
     dp.include_router(checkers_router)
     dp.include_router(media_router)

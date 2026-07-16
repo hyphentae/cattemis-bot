@@ -262,7 +262,7 @@ def _status(game: CheckersGame) -> str:
             return f"🔴 <a href='tg://user?id={game.player1_id}'>хозяин</a> победил! хехе~ >:3"
         if game.winner == P2:
             if game.vs_bot:
-                return "Хозяин я победила! хехе (¬_¬) один раз >w<"
+                return "Хозяин я победил! хехе (¬_¬) один раз >w<"
             return f"🔵 <a href='tg://user?id={game.player2_id}'>игрок 2</a> победил! хехе~ >:3"
         return "ничья... вы оба молодцы :3"
     p_mark = "🔴" if game.current == P1 else "🔵"

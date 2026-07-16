@@ -116,7 +116,7 @@ def _status_text(game: TicTacToeGame, winner: Optional[str] = None) -> str:
         if game.vs_bot:
             if winner == TicTacToeGame.X:
                 return f"{emoji} хозяин ты победил! хехе~ >:3"
-            return f"{emoji} хозяин я победила! хехе (¬_¬)"
+            return f"{emoji} хозяин я победил! хехе :3c"
         pid = game.player_x_id if winner == TicTacToeGame.X else game.player_o_id
         return f"{emoji} <a href='tg://user?id={pid}'>хозяин</a> победил! хехе~ >:3"
     turn_mark = game.current

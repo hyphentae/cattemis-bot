@@ -1,16 +1,17 @@
 """Telegram file and Whisper helpers for audio transcription."""
 
 import asyncio
+import io
 import logging
 import tempfile
+import threading
 from pathlib import Path
-
-import aiohttp
 
 from .config import settings
 
 logger = logging.getLogger(__name__)
 _whisper_model = None
+_whisper_model_lock = threading.Lock()
 
 
 def _get_whisper_model():
@@ -18,17 +19,20 @@ def _get_whisper_model():
     global _whisper_model  # noqa: PLW0603
     if _whisper_model is not None or not settings.whisper_enabled:
         return _whisper_model
-    try:
-        from faster_whisper import WhisperModel  # type: ignore[import]
+    with _whisper_model_lock:
+        if _whisper_model is not None:
+            return _whisper_model
+        try:
+            from faster_whisper import WhisperModel  # type: ignore[import]
 
-        _whisper_model = WhisperModel(
-            settings.whisper_model_size,
-            device=settings.whisper_device,
-            compute_type=settings.whisper_compute_type,
-        )
-        logger.info("[whisper] model loaded")
-    except Exception as exc:  # pragma: no cover
-        logger.error("[whisper] failed to load model: %s", exc)
+            _whisper_model = WhisperModel(
+                settings.whisper_model_size,
+                device=settings.whisper_device,
+                compute_type=settings.whisper_compute_type,
+            )
+            logger.info("[whisper] model loaded")
+        except Exception as exc:  # pragma: no cover
+            logger.error("[whisper] failed to load model: %s", exc)
     return _whisper_model
 
 
@@ -37,11 +41,16 @@ async def download_telegram_file(file_id: str, fallback_name: str) -> tuple[byte
     from .main import bot
 
     file = await bot.get_file(file_id)
-    url = f"https://api.telegram.org/file/bot{settings.bot_token}/{file.file_path}"
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=90)) as session:
-        async with session.get(url) as resp:
-            resp.raise_for_status()
-            data = await resp.read()
+    if file.file_size and file.file_size > settings.max_file_size:
+        raise ValueError("Telegram-файл превышает допустимый размер")
+    if not file.file_path:
+        raise RuntimeError("Telegram не вернул путь к файлу")
+
+    destination = io.BytesIO()
+    await bot.download_file(file.file_path, destination=destination, timeout=90)
+    data = destination.getvalue()
+    if len(data) > settings.max_file_size:
+        raise ValueError("Telegram-файл превышает допустимый размер")
     ext = Path(file.file_path or fallback_name).suffix or Path(fallback_name).suffix or ".bin"
     return data, ext
 
@@ -72,7 +81,9 @@ async def transcribe_audio_with_whisper(audio_bytes: bytes, suffix: str = ".ogg"
     """Transcribe audio bytes, returning an empty string when disabled or unavailable."""
     if not settings.whisper_enabled:
         return ""
-    model = _get_whisper_model()
+    # Model initialization may download weights and allocate hundreds of MB.
+    # Keep it away from aiogram's event loop so other updates remain responsive.
+    model = await asyncio.to_thread(_get_whisper_model)
     if model is None:
         return ""
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix or ".ogg") as tmp:
