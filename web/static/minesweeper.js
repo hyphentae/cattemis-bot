@@ -11,6 +11,7 @@ export function initMinesweeper({ telegram, showScreen }) {
     restart: document.getElementById('restart-minesweeper'),
     difficulties: document.getElementById('mines-difficulties'),
     board: document.getElementById('mines-board'),
+    screen: document.getElementById('screen-minesweeper'),
     viewport: document.getElementById('mines-viewport'),
     minesLeft: document.getElementById('mines-left'),
     time: document.getElementById('mines-time'),
@@ -27,6 +28,8 @@ export function initMinesweeper({ telegram, showScreen }) {
   let elapsed = 0;
   let timer = null;
   let animatedCells = new Set();
+  let suppressedLongPressIndex = -1;
+  let suppressLongPressUntil = 0;
   const longPressed = new WeakSet();
 
   elements.open.addEventListener('click', () => {
@@ -38,6 +41,8 @@ export function initMinesweeper({ telegram, showScreen }) {
     showScreen('menu');
   });
   elements.restart.addEventListener('click', newGame);
+  elements.screen.addEventListener('selectstart', (event) => event.preventDefault());
+  elements.screen.addEventListener('dragstart', (event) => event.preventDefault());
   elements.mode.addEventListener('click', () => setFlagMode(!flagMode));
   elements.difficulties.addEventListener('click', (event) => {
     const button = event.target.closest('[data-difficulty]');
@@ -59,6 +64,8 @@ export function initMinesweeper({ telegram, showScreen }) {
     finished = false;
     elapsed = 0;
     animatedCells = new Set();
+    suppressedLongPressIndex = -1;
+    suppressLongPressUntil = 0;
     elements.time.textContent = '000';
     elements.board.className = 'mines-board';
     elements.board.style.setProperty('--mines-columns', config.cols);
@@ -138,7 +145,7 @@ export function initMinesweeper({ telegram, showScreen }) {
     render();
   }
 
-  function toggleFlag(index) {
+  function toggleFlag(index, hapticStyle = 'light') {
     const cell = cells[index];
     if (finished || cell.revealed) return;
     if (!cell.flagged && flaggedCount() >= config.mines) {
@@ -146,15 +153,29 @@ export function initMinesweeper({ telegram, showScreen }) {
       return;
     }
     cell.flagged = !cell.flagged;
-    telegram?.HapticFeedback?.impactOccurred('light');
+    if (hapticStyle === 'flag') {
+      if (cell.flagged) telegram?.HapticFeedback?.impactOccurred('heavy');
+      else telegram?.HapticFeedback?.impactOccurred('medium');
+    } else {
+      telegram?.HapticFeedback?.impactOccurred(hapticStyle);
+    }
     updateCounter();
     render();
   }
 
   function handleCell(button, index) {
-    if (longPressed.delete(button)) return;
+    if (longPressed.delete(button) || isLongPressSuppressed(index)) return;
     if (flagMode) toggleFlag(index);
     else reveal(index);
+  }
+
+  function suppressLongPressFollowUp(index) {
+    suppressedLongPressIndex = index;
+    suppressLongPressUntil = performance.now() + 800;
+  }
+
+  function isLongPressSuppressed(index) {
+    return index === suppressedLongPressIndex && performance.now() < suppressLongPressUntil;
   }
 
   function lose(explodedIndex) {
@@ -233,7 +254,8 @@ export function initMinesweeper({ telegram, showScreen }) {
       try { button.setPointerCapture(pointerId); } catch { /* WebView may not support capture */ }
       longPressTimer = window.setTimeout(() => {
         longPressed.add(button);
-        toggleFlag(index);
+        suppressLongPressFollowUp(index);
+        toggleFlag(index, 'flag');
         cancel();
       }, 500);
     });
@@ -247,7 +269,11 @@ export function initMinesweeper({ telegram, showScreen }) {
       event.preventDefault();
       const handledByLongPress = longPressed.has(button);
       cancel();
-      if (!handledByLongPress) toggleFlag(index);
+      if (!handledByLongPress && !isLongPressSuppressed(index)) {
+        longPressed.add(button);
+        suppressLongPressFollowUp(index);
+        toggleFlag(index, 'flag');
+      }
     });
   }
 
