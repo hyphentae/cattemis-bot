@@ -1,4 +1,4 @@
-import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.js?v=20260716-code-only';
+import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.ts';
 
 const PIECES = {
   K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
@@ -331,10 +331,10 @@ export function initChess({ telegram, showScreen }) {
     open: document.getElementById('open-chess'),
     lobbyBack: document.getElementById('chess-lobby-back'),
     playBot: document.getElementById('play-chess-bot'),
-    create: document.getElementById('create-chess-room'),
-    findPublic: document.getElementById('find-chess-public'),
+    create: document.getElementById('create-chess-room') as HTMLButtonElement,
+    findPublic: document.getElementById('find-chess-public') as HTMLButtonElement,
     joinForm: document.getElementById('join-chess-form'),
-    codeInput: document.getElementById('chess-room-code'),
+    codeInput: document.getElementById('chess-room-code') as HTMLInputElement,
     lobbyMessage: document.getElementById('chess-lobby-message'),
     leave: document.getElementById('leave-chess'),
     fresh: document.getElementById('new-chess'),
@@ -635,12 +635,12 @@ export function initChess({ telegram, showScreen }) {
 
     animating = true;
     elements.board.setAttribute('aria-busy', 'true');
-    elements.board.querySelectorAll('.chess-square').forEach((cell) => {
+    elements.board.querySelectorAll<HTMLButtonElement>('.chess-square').forEach((cell) => {
       cell.disabled = true;
       cell.setAttribute('aria-disabled', 'true');
     });
     try {
-      const animations = [animateChessPiece(move.from, move.to, accented)];
+      const animations: Promise<unknown>[] = [animateChessPiece(move.from, move.to, accented)];
       const captureSquare = (move.enPassant || move.en_passant)
         ? move.to + (colorOf(piece) === 'w' ? 8 : -8)
         : move.to;
@@ -673,7 +673,7 @@ export function initChess({ telegram, showScreen }) {
     const boardRect = elements.board.getBoundingClientRect();
     const figureRect = figure.getBoundingClientRect();
     const targetRect = toSquare.getBoundingClientRect();
-    const moving = figure.cloneNode(true);
+    const moving = figure.cloneNode(true) as HTMLElement;
     moving.classList.add('chess-piece-moving');
     if (accented) moving.classList.add('accented');
     Object.assign(moving.style, {
@@ -683,7 +683,7 @@ export function initChess({ telegram, showScreen }) {
       height: `${figureRect.height}px`,
     });
     elements.board.appendChild(moving);
-    figure.style.opacity = '0';
+    (figure as HTMLElement).style.opacity = '0';
     const targetX = targetRect.left + (targetRect.width - figureRect.width) / 2 - figureRect.left;
     const targetY = targetRect.top + (targetRect.height - figureRect.height) / 2 - figureRect.top;
     const animation = moving.animate([
@@ -748,7 +748,7 @@ export function initChess({ telegram, showScreen }) {
     }
   }
 
-  async function api(path, options = {}) {
+  async function api(path, options: RequestInit = {}) {
     if (!hasTelegramAuth(telegram)) throw new Error('открой игру внутри Telegram, хозяин :3');
     const response = await fetch(path, {
       ...options,

@@ -1,4 +1,4 @@
-import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.js?v=20260716-code-only';
+import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.ts';
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -6,11 +6,11 @@ export function initCheckers({ telegram, showScreen }) {
   const elements = {
     open: document.getElementById('open-checkers'),
     lobbyBack: document.getElementById('checkers-lobby-back'),
-    create: document.getElementById('create-checkers-room'),
-    createBot: document.getElementById('create-checkers-bot'),
-    findPublic: document.getElementById('find-checkers-public'),
+    create: document.getElementById('create-checkers-room') as HTMLButtonElement,
+    createBot: document.getElementById('create-checkers-bot') as HTMLButtonElement,
+    findPublic: document.getElementById('find-checkers-public') as HTMLButtonElement,
     joinForm: document.getElementById('join-checkers-form'),
-    codeInput: document.getElementById('checkers-room-code'),
+    codeInput: document.getElementById('checkers-room-code') as HTMLInputElement,
     lobbyMessage: document.getElementById('checkers-lobby-message'),
     leave: document.getElementById('leave-checkers'),
     copyCode: document.getElementById('copy-room-code'),
@@ -327,7 +327,7 @@ export function initCheckers({ telegram, showScreen }) {
     const boardRect = elements.board.getBoundingClientRect();
     const checkerRect = checker.getBoundingClientRect();
     const targetRect = toSquare.getBoundingClientRect();
-    const moving = checker.cloneNode(true);
+    const moving = checker.cloneNode(true) as HTMLElement;
     moving.classList.add('checker-moving');
     if (botMove) moving.classList.add('bot-move');
     Object.assign(moving.style, {
@@ -337,7 +337,7 @@ export function initCheckers({ telegram, showScreen }) {
       height: `${checkerRect.height}px`,
     });
     elements.board.appendChild(moving);
-    checker.style.opacity = '0';
+    (checker as HTMLElement).style.opacity = '0';
 
     const captured = Math.abs(move.to.row - move.from.row) === 2
       ? findSquare({ row: (move.from.row + move.to.row) / 2, col: (move.from.col + move.to.col) / 2 })?.querySelector('.checker')
@@ -379,7 +379,7 @@ export function initCheckers({ telegram, showScreen }) {
   function cloneBoard(board) { return board.map((row) => [...row]); }
   function delay(milliseconds) { return new Promise((resolve) => window.setTimeout(resolve, milliseconds)); }
 
-  async function api(path, options = {}) {
+  async function api(path, options: RequestInit = {}) {
     if (!hasTelegramAuth(telegram)) throw new Error('хозяин, открой игру внутри Telegram :3');
     const response = await fetch(path, {
       ...options,

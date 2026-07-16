@@ -1,4 +1,4 @@
-import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.js';
+import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.ts';
 
 const PALETTE = [
   '#ffffff', '#11111b', '#6c7086', '#cdd6f4',
@@ -14,7 +14,7 @@ export function initPixelCanvas({ telegram, showScreen }) {
   const elements = {
     open: document.getElementById('open-pixel-canvas'),
     leave: document.getElementById('leave-pixel-canvas'),
-    canvas: document.getElementById('shared-pixel-canvas'),
+    canvas: document.getElementById('shared-pixel-canvas') as HTMLCanvasElement,
     stage: document.getElementById('pixel-stage'),
     viewport: document.getElementById('pixel-viewport'),
     palette: document.getElementById('pixel-palette'),
@@ -288,7 +288,7 @@ export function initPixelCanvas({ telegram, showScreen }) {
     cooldownTimer = null;
   }
 
-  async function api(path, options = {}) {
+  async function api(path, options: RequestInit = {}) {
     const response = await fetch(path, {
       ...options,
       headers: {
@@ -299,7 +299,7 @@ export function initPixelCanvas({ telegram, showScreen }) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(payload.error || 'холст не отвечает... попробуй ещё раз, хозяин');
+      const error = new Error(payload.error || 'холст не отвечает... попробуй ещё раз, хозяин') as Error & { retryAfterMS: number };
       error.retryAfterMS = payload.retry_after_ms || 0;
       throw error;
     }
