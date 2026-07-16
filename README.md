@@ -33,7 +33,8 @@ Regular chess, checkers, and tic-tac-toe rooms are stored in memory and reset wh
 
 - Python 3.14, aiogram, and pydantic-settings — Telegram bot;
 - Go 1.26 — Mini App server, rooms, chess, checkers, and canvas APIs;
-- Node.js 24 LTS, Express, and WebSocket — Parabolic Chess;
+- TypeScript 5 and Vite — Mini App frontend;
+- Node.js 24 LTS, JavaScript, Express, and WebSocket — Parabolic Chess;
 - Docker Compose and Cloudflare Quick Tunnel — service orchestration and HTTPS access from Telegram.
 
 ## Quick start
@@ -186,8 +187,8 @@ Telegram
 cattemis_bot/      Python bot package, handlers, and downloaders
 cloudflared/       Quick Tunnel container and URL publication
 web/server/        Go API and static file server
-web/static/        Mini App HTML, CSS, and JavaScript
-web/parabolic/     standalone Parabolic Chess Node/WebSocket service
+web/client/        TypeScript, HTML, and CSS source for the Mini App
+web/parabolic/     JavaScript Node/WebSocket service and Parabolic Chess client
 docker-compose.yml service and volume orchestration
 run.py             bot container entry point
 ```
@@ -196,12 +197,12 @@ run.py             bot container entry point
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/cattemis-pycache python -m compileall -q cattemis_bot
-docker build -t cattemis-web-check web/server
+docker build -f web/server/Dockerfile -t cattemis-web-check web
 docker build -t cattemis-parabolic-check web/parabolic
 docker compose config -q
 ```
 
-Go tests run as part of the `web/server` image build.
+The Mini App TypeScript check and Go tests run as part of the `web` image build.
 
 ## Attribution
 

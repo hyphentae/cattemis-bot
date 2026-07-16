@@ -33,7 +33,8 @@
 
 - Python 3.14, aiogram и pydantic-settings — Telegram-бот;
 - Go 1.26 — Mini App, API комнат, шахмат, шашек и общего холста;
-- Node.js 24 LTS, Express и WebSocket — Parabolic Chess;
+- TypeScript 5 и Vite — фронтенд Mini App;
+- Node.js 24 LTS, JavaScript, Express и WebSocket — Parabolic Chess;
 - Docker Compose и Cloudflare Quick Tunnel — запуск сервисов и HTTPS-доступ из Telegram.
 
 ## Быстрый запуск
@@ -186,8 +187,8 @@ Telegram
 cattemis_bot/      Python-пакет бота, обработчики и загрузчики
 cloudflared/       контейнер Quick Tunnel и публикация его URL
 web/server/        Go API и сервер статических файлов
-web/static/        HTML, CSS и JavaScript Mini App
-web/parabolic/     отдельный Node/WebSocket-сервис Parabolic Chess
+web/client/        исходники Mini App на TypeScript, HTML и CSS
+web/parabolic/     JavaScript-сервис Node/WebSocket и клиент Parabolic Chess
 docker-compose.yml оркестрация сервисов и volumes
 run.py             точка входа контейнера бота
 ```
@@ -196,12 +197,12 @@ run.py             точка входа контейнера бота
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/cattemis-pycache python -m compileall -q cattemis_bot
-docker build -t cattemis-web-check web/server
+docker build -f web/server/Dockerfile -t cattemis-web-check web
 docker build -t cattemis-parabolic-check web/parabolic
 docker compose config -q
 ```
 
-Go-тесты запускаются на этапе сборки `web/server`.
+Проверка TypeScript Mini App и Go-тесты запускаются при сборке образа `web`.
 
 ## Attribution
 

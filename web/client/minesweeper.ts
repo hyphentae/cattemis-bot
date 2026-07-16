@@ -45,7 +45,7 @@ export function initMinesweeper({ telegram, showScreen }) {
   elements.screen.addEventListener('dragstart', (event) => event.preventDefault());
   elements.mode.addEventListener('click', () => setFlagMode(!flagMode));
   elements.difficulties.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-difficulty]');
+    const button = (event.target as Element).closest<HTMLElement>('[data-difficulty]');
     if (!button || button.dataset.difficulty === difficulty) return;
     difficulty = button.dataset.difficulty;
     newGame();
@@ -295,7 +295,7 @@ export function initMinesweeper({ telegram, showScreen }) {
   }
 
   function updateDifficultyButtons() {
-    elements.difficulties.querySelectorAll('[data-difficulty]').forEach((button) => {
+    elements.difficulties.querySelectorAll<HTMLElement>('[data-difficulty]').forEach((button) => {
       const selected = button.dataset.difficulty === difficulty;
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-pressed', String(selected));

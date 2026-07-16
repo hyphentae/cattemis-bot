@@ -9,13 +9,14 @@ services:
     restart: unless-stopped
 
   web:
-    build: web/server
+    build:
+      context: web
+      dockerfile: server/Dockerfile
     restart: unless-stopped
     env_file: .env
     depends_on:
       - parabolic
     volumes:
-      - ./web/static:/static:ro
       - canvas:/data
 
   cloudflared:

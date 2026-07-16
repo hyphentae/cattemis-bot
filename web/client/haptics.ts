@@ -24,7 +24,7 @@ function canVibrate() {
   return typeof navigator.vibrate === 'function';
 }
 
-function callNative(nativeFeedback, method, value) {
+function callNative(nativeFeedback, method, value?) {
   const callback = nativeFeedback?.[method];
   if (typeof callback !== 'function') return false;
   try {

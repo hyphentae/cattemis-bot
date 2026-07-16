@@ -1,4 +1,4 @@
-import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.js?v=20260716-code-only';
+import { hasTelegramAuth, telegramAuthHeaders } from './telegram-auth.ts';
 
 const WINNING_LINES = [
   [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -145,7 +145,7 @@ export function initTicTacToe({ telegram, showScreen }) {
   });
   elements.findPublic.addEventListener('click', () => enterOnline('/api/tictactoe/public'));
   elements.create.addEventListener('click', () => enterOnline('/api/tictactoe/create'));
-  elements.joinForm.addEventListener('submit', (event) => { event.preventDefault(); joinByCode(elements.codeInput.value.toUpperCase()); });
+  elements.joinForm.addEventListener('submit', (event) => { event.preventDefault(); joinByCode((elements.codeInput as HTMLInputElement).value.toUpperCase()); });
   elements.copyCode.addEventListener('click', async () => {
     if (!room?.code) return;
     try {
@@ -196,7 +196,7 @@ export function initTicTacToe({ telegram, showScreen }) {
     });
   }
 
-  async function enterOnline(path, body) {
+  async function enterOnline(path, body?) {
     if (pending || !hasTelegramAuth(telegram)) return;
     pending = true;
     try {
@@ -297,9 +297,9 @@ export function initTicTacToe({ telegram, showScreen }) {
   }
 
   function updateScoreboard() {
-    elements.scoreYou.textContent = scores.you;
-    elements.scoreBot.textContent = scores.bot;
-    elements.scoreDraw.textContent = scores.draw;
+    elements.scoreYou.textContent = String(scores.you);
+    elements.scoreBot.textContent = String(scores.bot);
+    elements.scoreDraw.textContent = String(scores.draw);
   }
 
   function bumpScore(element) {
