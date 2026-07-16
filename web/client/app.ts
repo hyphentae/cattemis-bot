@@ -1,10 +1,10 @@
-import { initCheckers } from './checkers.js?v=20260716-code-only';
-import { initChess } from './chess.js?v=20260716-code-only';
-import { initSudoku } from './sudoku.js';
-import { initTicTacToe } from './tictactoe.js?v=20260716-code-only';
-import { initPixelCanvas } from './pixel-canvas.js?v=20260716-zoom40';
-import { initMinesweeper } from './minesweeper.js?v=20260717-mines-longpress-v5';
-import { createHapticFeedback } from './haptics.js?v=20260717-mines-longpress-v5';
+import { initCheckers } from './checkers.ts';
+import { initChess } from './chess.ts';
+import { initSudoku } from './sudoku.ts';
+import { initTicTacToe } from './tictactoe.ts';
+import { initPixelCanvas } from './pixel-canvas.ts';
+import { initMinesweeper } from './minesweeper.ts';
+import { createHapticFeedback } from './haptics.ts';
 
 const nativeTelegram = window.Telegram?.WebApp;
 const telegram = {
@@ -29,7 +29,7 @@ function showScreen(name) {
 }
 
 document.getElementById('open-parabolic-chess').addEventListener('click', () => {
-  const frame = document.getElementById('parabolic-frame');
+  const frame = document.getElementById('parabolic-frame') as HTMLIFrameElement;
   if (frame.getAttribute('src') === 'about:blank') {
     frame.src = frame.dataset.src;
   }
@@ -37,18 +37,18 @@ document.getElementById('open-parabolic-chess').addEventListener('click', () => 
 });
 
 document.getElementById('leave-parabolic').addEventListener('click', () => {
-  document.getElementById('parabolic-frame').src = 'about:blank';
+  (document.getElementById('parabolic-frame') as HTMLIFrameElement).src = 'about:blank';
   showScreen('menu');
 });
 
 document.getElementById('open-deltarune').addEventListener('click', () => {
-  const frame = document.getElementById('deltarune-frame');
+  const frame = document.getElementById('deltarune-frame') as HTMLIFrameElement;
   if (frame.getAttribute('src') === 'about:blank') frame.src = frame.dataset.src;
   showScreen('deltarune');
 });
 
 document.getElementById('leave-deltarune').addEventListener('click', () => {
-  document.getElementById('deltarune-frame').src = 'about:blank';
+  (document.getElementById('deltarune-frame') as HTMLIFrameElement).src = 'about:blank';
   showScreen('menu');
 });
 initializeTelegram();
