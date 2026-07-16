@@ -31,9 +31,9 @@ Regular chess, checkers, and tic-tac-toe rooms are stored in memory and reset wh
 
 ## Technology
 
-- Python 3.12, aiogram, and pydantic-settings — Telegram bot;
-- Go 1.23 — Mini App server, rooms, chess, checkers, and canvas APIs;
-- Node.js 22, Express, and WebSocket — Parabolic Chess;
+- Python 3.14, aiogram, and pydantic-settings — Telegram bot;
+- Go 1.26 — Mini App server, rooms, chess, checkers, and canvas APIs;
+- Node.js 24 LTS, Express, and WebSocket — Parabolic Chess;
 - Docker Compose and Cloudflare Quick Tunnel — service orchestration and HTTPS access from Telegram.
 
 ## Quick start
