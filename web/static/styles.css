@@ -977,6 +977,13 @@ button.card:active { transform: scale(.975); }
   gap: .65rem;
 }
 
+#screen-minesweeper,
+#screen-minesweeper * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .mines-difficulties {
   display: grid;
   width: 100%;
@@ -1079,6 +1086,7 @@ button.card:active { transform: scale(.975); }
   -webkit-appearance: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   transition: border-color .12s, background .12s, box-shadow .12s, transform .12s;
 }
 

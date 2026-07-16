@@ -3,18 +3,23 @@ import { initChess } from './chess.js?v=20260716-code-only';
 import { initSudoku } from './sudoku.js';
 import { initTicTacToe } from './tictactoe.js?v=20260716-code-only';
 import { initPixelCanvas } from './pixel-canvas.js?v=20260716-zoom40';
-import { initMinesweeper } from './minesweeper.js?v=20260716-long-press';
+import { initMinesweeper } from './minesweeper.js?v=20260717-mines-longpress-v5';
+import { createHapticFeedback } from './haptics.js?v=20260717-mines-longpress-v5';
 
-const telegram = window.Telegram?.WebApp;
+const nativeTelegram = window.Telegram?.WebApp;
+const telegram = {
+  get initData() { return nativeTelegram?.initData ?? ''; },
+  HapticFeedback: createHapticFeedback(nativeTelegram?.HapticFeedback),
+};
 const screens = document.querySelectorAll('.screen');
 
 function initializeTelegram() {
-  if (!telegram) return;
+  if (!nativeTelegram) return;
 
-  telegram.ready();
-  telegram.expand();
-  telegram.setHeaderColor?.('#171525');
-  telegram.setBackgroundColor?.('#11111b');
+  nativeTelegram.ready();
+  nativeTelegram.expand();
+  nativeTelegram.setHeaderColor?.('#171525');
+  nativeTelegram.setBackgroundColor?.('#11111b');
 }
 
 function showScreen(name) {
