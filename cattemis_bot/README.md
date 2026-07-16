@@ -29,7 +29,7 @@ cattemis_bot/
 └── handlers/
     ├── __init__.py
     ├── commands.py      # /help /ping /stats /reset /say_cattemis
-    └── media.py         # process_media_url + catch-all handle_link
+    └── media.py         # media-link and explicitly addressed LLM handlers
 ```
 
 ---
@@ -97,3 +97,23 @@ python -m cattemis_bot.main
 - **`DownloadResult.cleanup()`** removes temp dirs; called in `finally` blocks in `process_media_url`.
 - **File size guard** in `send_local_media` warns and skips files >50 MB instead of letting Telegram reject them.
 - **`dict.fromkeys`** is used for O(1) URL deduplication everywhere.
+
+### Mini App checkers multiplayer
+
+The Go web service serves the Mini App and an authenticated checkers API. A
+player creates a six-character room code and a second Telegram user joins with
+that code. Requests are authenticated with signed `Telegram.WebApp.initData`;
+the web service receives `BOT_TOKEN` through the shared `.env` file.
+
+Rooms are held in memory and expire after six hours of inactivity, so active
+games are reset whenever the `web` container restarts.
+
+The Telegram HTML5 Games `tictactoe`, `checkers`, `sudoku`, `parabolic_chess`,
+`chess`, and `minesweeper` each open their matching screen. Use `/games` for a compact picker,
+or type `@cattemis_bot` in any chat to publish a game through inline mode. Game
+launches use a signed token in the URL fragment, so authenticated multiplayer
+continues to work without a permanent Cloudflare domain.
+
+Parabolic Chess runs as a separate Node/WebSocket service behind the same Go
+reverse proxy and opens inside the Mini App. Its source and attribution live in
+`web/parabolic`; the integration is based on MellowYellow7777's public project.

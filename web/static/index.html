@@ -8,80 +8,324 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260716-long-press">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="app.js" defer></script>
+  <script src="https://telegram.org/js/games.js"></script>
+  <script type="module" src="app.js?v=20260716-long-press"></script>
 </head>
 <body>
   <div class="orb orb-one"></div>
   <div class="orb orb-two"></div>
+  <div class="orb orb-three"></div>
 
   <svg class="svg-sprite" aria-hidden="true">
     <symbol id="icon-x" viewBox="0 0 24 24">
       <path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4z"/>
     </symbol>
     <symbol id="icon-o" viewBox="0 0 24 24">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-      <circle cx="12" cy="12" r="4" opacity=".35"/>
+      <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/>
     </symbol>
   </svg>
 
   <section class="screen active" id="screen-menu">
     <main class="panel menu-panel">
-      <div class="avatar" aria-hidden="true">🐾</div>
-      <header class="hero-copy">
-        <div class="eyebrow">telegram mini app</div>
-        <h1 class="brand">cattemis</h1>
-        <p class="tagline">маленькое место для больших перерывов</p>
-      </header>
-
-      <div class="user-chip" id="user-chip">
-        <div class="user-dot">👤</div>
-        <span id="user-name"></span>
-      </div>
-
       <div class="section-heading">
-        <h2 class="section-label">выбери игру</h2>
-        <span class="section-count">1 доступна</span>
+        <h2 class="section-label">хозяин, во что поиграем? :3</h2>
+        <span class="section-count">8 доступно</span>
       </div>
 
       <div class="games">
         <button class="card ttt" id="open-ttt" type="button">
           <span class="card-icon"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><use href="#icon-x"/></svg></span>
-          <span class="card-info"><strong>крестики-нолики</strong><small>сыграть против Кэттемис</small></span>
+          <span class="card-info"><strong>крестики нолики</strong><small>owo</small></span>
           <span class="card-arrow">→</span>
         </button>
-        <div class="card chk disabled" aria-disabled="true">
-          <div class="card-icon">🔴</div>
-          <div class="card-info"><strong>шашки</strong><small>готовим игровое поле</small></div>
-          <span class="badge-soon">скоро</span>
-        </div>
-        <div class="card ches disabled" aria-disabled="true">
-          <div class="card-icon">♟️</div>
-          <div class="card-info"><strong>шахматы</strong><small>учим кота дебютам</small></div>
-          <span class="badge-soon">скоро</span>
-        </div>
+        <button class="card mines" id="open-minesweeper" type="button">
+          <span class="card-icon"><i class="menu-mine" aria-hidden="true"></i></span>
+          <span class="card-info"><strong>сапёр</strong><small>мне страшна хозяин</small></span>
+          <span class="card-arrow">→</span>
+        </button>
+        <button class="card sdk" id="open-sudoku" type="button">
+          <span class="card-icon"><i class="menu-sudoku" aria-hidden="true"></i></span>
+          <span class="card-info"><strong>судоку</strong><small>посчитаем на лапках, хозяин :3</small></span>
+          <span class="card-arrow">→</span>
+        </button>
+        <button class="card pixel" id="open-pixel-canvas" type="button">
+          <span class="card-icon"><i class="menu-pixels" aria-hidden="true"></i></span>
+          <span class="card-info"><strong>общий холст</strong><small>порисуй, хозяин :3</small></span>
+          <span class="card-arrow">→</span>
+        </button>
+        <button class="card ches" id="open-chess" type="button">
+          <span class="card-icon">♞</span>
+          <span class="card-info"><strong>шахматы</strong><small>хозяин против меня :3</small></span>
+          <span class="card-arrow">→</span>
+        </button>
+        <button class="card para" id="open-parabolic-chess" type="button">
+          <span class="card-icon">♛</span>
+          <span class="card-info"><strong>parabolic chess</strong><small>от MellowYellow7777, owo</small></span>
+          <span class="card-arrow" aria-hidden="true">→</span>
+        </button>
+        <button class="card deltarune" id="open-deltarune" type="button">
+          <span class="card-icon"><img src="https://orchard.vinetrap.net/app/assets/pwa.png" alt="" loading="lazy" referrerpolicy="no-referrer"></span>
+          <span class="card-info"><strong>дельтарун</strong><small>Project Vinetrap</small></span>
+          <span class="card-arrow" aria-hidden="true">→</span>
+        </button>
+        <button class="card chk" id="open-checkers" type="button">
+          <span class="card-icon"><i class="menu-checker" aria-hidden="true"></i></span>
+          <span class="card-info"><strong>шашки</strong><small>со мной или с другом, мяу</small></span>
+          <span class="card-arrow">→</span>
+        </button>
       </div>
     </main>
   </section>
+
+  <section class="screen game-lobby-screen" id="screen-ttt-lobby"><main class="panel checkers-panel">
+    <header class="game-topbar"><button class="back-btn" id="ttt-lobby-back" type="button">←</button><div class="game-title"><strong>крестики-нолики</strong><span>выбери режим, хозяин</span></div></header>
+    <div class="checkers-modes">
+      <button class="mode-btn bot-mode" id="play-ttt-bot" type="button"><span><strong>играть с катемисом</strong><small>локальная партия</small></span><i>→</i></button>
+      <button class="mode-btn public-mode" id="find-ttt-public" type="button"><span><strong>найти соперника</strong><small>публичная партия</small></span><i>⌁</i></button>
+      <button class="mode-btn" id="create-ttt-room" type="button"><span><strong>создать комнату</strong><small>передай другу код комнаты</small></span><i>→</i></button>
+    </div>
+    <form class="join-form" id="join-ttt-form"><div class="join-row"><input id="ttt-room-code" maxlength="6" placeholder="ABC123" required><button type="submit">войти</button></div></form>
+    <p class="form-message" id="ttt-lobby-message"></p>
+  </main></section>
 
   <section class="screen" id="screen-ttt">
     <main class="panel game-panel">
       <header class="game-topbar">
         <button class="back-btn" id="back-menu" type="button" aria-label="Вернуться в меню">←</button>
-        <div class="game-title"><strong>крестики-нолики</strong><span>ты играешь за крестики</span></div>
+        <div class="game-title"><strong>крестики-нолики</strong><span>хозяин, твои — крестики :3</span></div>
       </header>
 
-      <div class="score-row">
-        <div class="score-chip you"><span>ты</span><strong id="score-you">0</strong></div>
+      <div class="ttt-online-meta" id="ttt-online-meta" hidden>
+        <button class="room-code" id="copy-ttt-room-code" type="button">комната <strong id="active-ttt-code">------</strong> <span>⧉</span></button>
+      </div>
+
+      <div class="score-row" id="ttt-score-row">
+        <div class="score-chip you"><span>хозяин</span><strong id="score-you">0</strong></div>
         <div class="score-chip draw"><span>ничья</span><strong id="score-draw">0</strong></div>
-        <div class="score-chip bot"><span>Кэттемис</span><strong id="score-bot">0</strong></div>
+        <div class="score-chip bot"><span>катемис</span><strong id="score-bot">0</strong></div>
       </div>
 
       <div class="status-bar" id="ttt-status" aria-live="polite">твой ход</div>
       <div class="board" id="ttt-board" role="grid" aria-label="Поле крестиков-ноликов"></div>
-      <button class="restart-btn" id="restart-ttt" type="button">сыграть заново</button>
+      <button class="restart-btn" id="restart-ttt" type="button">ещё партию, хозяин</button>
     </main>
   </section>
+
+  <section class="screen" id="screen-sudoku">
+    <main class="panel game-panel sudoku-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="leave-sudoku" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>судоку</strong><span>хозяин, заполни все клеточки :3</span></div>
+      </header>
+
+      <div class="sudoku-meta">
+        <span>ошибки <strong id="sudoku-mistakes">0</strong></span>
+        <button id="new-sudoku" type="button">новая сетка</button>
+      </div>
+      <div class="status-bar" id="sudoku-status" aria-live="polite">выбери пустую клеточку, хозяин</div>
+      <div class="sudoku-board" id="sudoku-board" role="grid" aria-label="Поле судоку"></div>
+      <div class="sudoku-keypad" id="sudoku-keypad" aria-label="Цифры судоку"></div>
+    </main>
+  </section>
+
+  <section class="screen game-lobby-screen" id="screen-chess-lobby">
+    <main class="panel checkers-panel chess-lobby-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="chess-lobby-back" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>шахматы</strong><span>с катемисом или другом :3</span></div>
+      </header>
+
+      <p class="lobby-copy">хозяин, кого сегодня поставим под шах?</p>
+      <div class="checkers-modes">
+        <button class="mode-btn bot-mode" id="play-chess-bot" type="button">
+          <span><strong>играть с катемисом</strong><small>локальная партия против бота</small></span>
+          <i aria-hidden="true">→</i>
+        </button>
+        <button class="mode-btn public-mode" id="find-chess-public" type="button">
+          <span><strong>найти соперника</strong><small>публичное лобби без кодика</small></span>
+          <i aria-hidden="true">⌁</i>
+        </button>
+        <button class="mode-btn" id="create-chess-room" type="button">
+          <span><strong>создать комнату</strong><small>онлайн-шахматы с другом</small></span>
+          <i aria-hidden="true">→</i>
+        </button>
+      </div>
+      <div class="join-divider"><span>или войти по кодику</span></div>
+      <form class="join-form" id="join-chess-form">
+        <label for="chess-room-code">кодик комнаты</label>
+        <div class="join-row">
+          <input id="chess-room-code" name="code" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123" required>
+          <button type="submit">войти :3</button>
+        </div>
+      </form>
+      <p class="form-message" id="chess-lobby-message" role="alert"></p>
+    </main>
+  </section>
+
+  <section class="screen" id="screen-chess">
+    <main class="panel game-panel chess-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="leave-chess" type="button" aria-label="Выйти из партии">←</button>
+        <div class="checkers-match-title" id="chess-match-title">партия с катемисом</div>
+        <button class="room-code" id="copy-chess-room-code" type="button" title="Скопировать код комнаты" hidden>
+          комната <strong id="active-chess-room-code">------</strong> <span>⧉</span>
+        </button>
+      </header>
+
+      <div class="status-bar" id="chess-status" aria-live="polite">твой ход, хозяин</div>
+      <div class="chess-board" id="chess-board" role="grid" aria-label="Шахматная доска"></div>
+      <button class="restart-btn" id="new-chess" type="button">новая партия, хозяин</button>
+    </main>
+  </section>
+
+  <section class="screen game-lobby-screen" id="screen-checkers-lobby">
+    <main class="panel checkers-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="checkers-lobby-back" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>шашки</strong><span>с катемисом или другом :3</span></div>
+      </header>
+
+      <p class="lobby-copy">хозяин, сыграем вдвоём или позовём друга?</p>
+
+      <div class="checkers-modes">
+        <button class="mode-btn bot-mode" id="create-checkers-bot" type="button">
+          <span><strong>играть с катемисом</strong><small>постараюсь не поддаваться :3c</small></span>
+          <i aria-hidden="true">→</i>
+        </button>
+        <button class="mode-btn public-mode" id="find-checkers-public" type="button">
+          <span><strong>найти соперника</strong><small>публичное лобби без кодика</small></span>
+          <i aria-hidden="true">⌁</i>
+        </button>
+        <button class="mode-btn" id="create-checkers-room" type="button">
+          <span><strong>создать комнату</strong><small>передай другу код комнаты</small></span>
+          <i aria-hidden="true">→</i>
+        </button>
+      </div>
+
+      <div class="join-divider"><span>или войти по кодику</span></div>
+      <form class="join-form" id="join-checkers-form">
+        <label for="checkers-room-code">кодик комнаты</label>
+        <div class="join-row">
+          <input id="checkers-room-code" name="code" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123" required>
+          <button type="submit">войти :3</button>
+        </div>
+      </form>
+      <p class="form-message" id="checkers-lobby-message" role="alert"></p>
+    </main>
+  </section>
+
+  <section class="screen" id="screen-checkers-game">
+    <main class="panel checkers-panel game-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="leave-checkers" type="button" aria-label="Выйти из комнаты">←</button>
+        <div class="checkers-match-title" id="checkers-match-title">онлайн-партия</div>
+        <button class="room-code" id="copy-room-code" type="button" title="Скопировать код комнаты">
+          комната <strong id="active-room-code">------</strong> <span>⧉</span>
+        </button>
+      </header>
+
+      <div class="players-row">
+        <div class="player-card red"><i></i><span id="checkers-red-name">Игрок 1</span></div>
+        <div class="turn-indicator" id="checkers-turn">ожидание</div>
+        <div class="player-card blue"><i></i><span id="checkers-blue-name">Игрок 2</span></div>
+      </div>
+
+      <div class="checkers-status" id="checkers-status" aria-live="polite">секундочку, хозяин... :3</div>
+      <div class="checkers-board" id="checkers-board" role="grid" aria-label="Доска для шашек"></div>
+      <p class="checkers-hint" id="checkers-hint">хозяин, выбери шашку, а потом зелёную точку :3</p>
+    </main>
+  </section>
+
+  <section class="screen parabolic-game-screen" id="screen-parabolic">
+    <main class="parabolic-shell">
+      <header class="parabolic-topbar">
+        <button class="back-btn" id="leave-parabolic" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title">
+          <strong>parabolic chess</strong>
+          <span>поле свернулось, хозяин... owo</span>
+        </div>
+      </header>
+      <iframe
+        id="parabolic-frame"
+        title="parabolic chess"
+        src="about:blank"
+        data-src="/parabolic/"
+        allow="fullscreen"
+      ></iframe>
+    </main>
+  </section>
+
+  <section class="screen deltarune-game-screen" id="screen-deltarune">
+    <main class="deltarune-shell">
+      <header class="deltarune-topbar">
+        <button class="back-btn" id="leave-deltarune" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title">
+          <strong>DELTARUNE</strong>
+          <span>Project Vinetrap</span>
+        </div>
+      </header>
+      <iframe
+        id="deltarune-frame"
+        title="DELTARUNE — Project Vinetrap"
+        src="about:blank"
+        data-src="https://orchard.vinetrap.net/"
+        allow="autoplay; fullscreen; gamepad"
+        allowfullscreen
+      ></iframe>
+    </main>
+  </section>
+
+  <section class="screen" id="screen-pixel-canvas">
+    <main class="panel pixel-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="leave-pixel-canvas" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>общий холст</strong><span>>⩊<.ᐟ</span></div>
+      </header>
+
+      <div class="pixel-toolbar">
+        <div class="pixel-coordinates" id="pixel-coordinates">x: — · y: —</div>
+        <span>двигай одним пальцем · масштабируй двумя</span>
+      </div>
+
+      <div class="pixel-viewport" id="pixel-viewport">
+        <div class="pixel-stage" id="pixel-stage">
+          <canvas id="shared-pixel-canvas" width="1000" height="1000" aria-label="Общий пиксельный холст"></canvas>
+          <div class="pixel-grid" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="pixel-status" id="pixel-status" aria-live="polite">загружаю общий рисунок...</div>
+      <div class="pixel-palette" id="pixel-palette" aria-label="Палитра цветов"></div>
+      <p class="pixel-hint">выбери цвет и коснись пикселя · новый пиксель раз в 10 секунд</p>
+    </main>
+  </section>
+
+  <section class="screen" id="screen-minesweeper">
+    <main class="panel game-panel mines-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="leave-minesweeper" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>сапёр</strong><span>хозяин разминируй плииз</span></div>
+      </header>
+
+      <div class="mines-difficulties" id="mines-difficulties" aria-label="Сложность сапёра">
+        <button type="button" data-difficulty="easy"><strong>лёгкий</strong><small>9×9 · 10 мин</small></button>
+        <button type="button" data-difficulty="medium"><strong>средний</strong><small>16×16 · 40 мин</small></button>
+        <button type="button" data-difficulty="hard"><strong>сложный</strong><small>30×16 · 99 мин</small></button>
+      </div>
+
+      <div class="mines-toolbar">
+        <span>мины <strong id="mines-left">10</strong></span>
+        <button id="mines-mode" type="button" aria-pressed="false">режим: открывать</button>
+        <span>время <strong id="mines-time">000</strong></span>
+      </div>
+      <div class="status-bar" id="mines-status" aria-live="polite">выбери клетку, хозяин</div>
+      <div class="mines-viewport" id="mines-viewport">
+        <div class="mines-board" id="mines-board" role="grid" aria-label="Поле сапёра"></div>
+      </div>
+      <button class="restart-btn" id="restart-minesweeper" type="button">новое поле</button>
+    </main>
+  </section>
+
 </body>
 </html>
