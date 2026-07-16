@@ -51,7 +51,11 @@ func main() {
 		r.URL.Path = "/"
 		parabolicProxy.ServeHTTP(w, r)
 	})
-	mux.Handle("/", http.FileServer(http.Dir("/static")))
+	staticFiles := http.FileServer(http.Dir("/static"))
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		staticFiles.ServeHTTP(w, r)
+	}))
 
 	httpServer := &http.Server{
 		Addr:              ":" + port,
