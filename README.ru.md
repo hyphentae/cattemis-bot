@@ -31,9 +31,9 @@
 
 ## Стек
 
-- Python 3.12, aiogram и pydantic-settings — Telegram-бот;
-- Go 1.23 — Mini App, API комнат, шахмат, шашек и общего холста;
-- Node.js 22, Express и WebSocket — Parabolic Chess;
+- Python 3.14, aiogram и pydantic-settings — Telegram-бот;
+- Go 1.26 — Mini App, API комнат, шахмат, шашек и общего холста;
+- Node.js 24 LTS, Express и WebSocket — Parabolic Chess;
 - Docker Compose и Cloudflare Quick Tunnel — запуск сервисов и HTTPS-доступ из Telegram.
 
 ## Быстрый запуск
