@@ -18,7 +18,6 @@ from .media import (
 from .telegram import tg_call, safe_status_edit, safe_delete_message
 from .text import (
     cleanup_llm_text,
-    fix_truncated_kaomoji,
     strip_unicode_emoji,
     extract_urls_from_message,
     truncate,
@@ -40,7 +39,6 @@ __all__ = [
     "safe_delete_message",
     # text
     "cleanup_llm_text",
-    "fix_truncated_kaomoji",
     "strip_unicode_emoji",
     "extract_urls_from_message",
     "truncate",

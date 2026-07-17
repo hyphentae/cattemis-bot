@@ -3,7 +3,6 @@
 Provides:
 - ``strip_unicode_emoji`` — remove emoji characters from a string.
 - ``cleanup_llm_text`` — clean up raw LLM output for Telegram display.
-- ``fix_truncated_kaomoji`` — repair cut-off kaomoji at end of string.
 - ``extract_urls_from_message`` — collect unique URLs from a Telegram message.
 - ``truncate`` — cap a string to a maximum length.
 """
@@ -52,22 +51,10 @@ def cleanup_llm_text(text: str) -> str:
     - Collapses repeated punctuation.
     """
     text = strip_unicode_emoji(text)
-    text = text.replace("**", "").replace("*", "")
+    text = text.replace("**", "*")
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r" ?([,.;:!?]){2,}", r"\1", text)
     return text.strip()
-
-
-def fix_truncated_kaomoji(text: str) -> str:
-    """Attempt to close a kaomoji that was cut off at the end of *text*."""
-    if not text:
-        return text
-    if re.search(r">\/{2,}$", text):
-        text += "<"
-    if text.endswith(">///"):
-        text += "/<"
-    return text
 
 
 # ---------------------------------------------------------------------------

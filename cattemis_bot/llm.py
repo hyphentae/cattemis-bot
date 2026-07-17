@@ -21,7 +21,7 @@ from openai import AsyncOpenAI
 
 from .config import settings
 from .state import state
-from .utils.text import cleanup_llm_text, fix_truncated_kaomoji
+from .utils.text import cleanup_llm_text
 from .web_search import format_search_context, search_web
 
 logger = logging.getLogger(__name__)
@@ -242,7 +242,6 @@ async def ask_llm(
     choice = response.choices[0]
     text = (choice.message.content or "") if choice.message else ""
     text = cleanup_llm_text(text)
-    text = fix_truncated_kaomoji(text)
 
     state.append_history(chat_id, "user", user_content, max_messages=settings.max_history_messages)
     state.append_history(chat_id, "assistant", text or "...", max_messages=settings.max_history_messages)
