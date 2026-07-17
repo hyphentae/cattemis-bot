@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.6
     llm_web_search_enabled: bool = False
     llm_web_search_max_results: int = 5
+    llm_timezone: str = "Asia/Almaty"
 
     # --- Whisper (voice / audio transcription) ---
     whisper_enabled: bool = False

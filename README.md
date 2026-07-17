@@ -9,6 +9,7 @@
 - downloads media from TikTok, Instagram, X/Twitter, YouTube, Vimeo, and direct links;
 - sends photos and videos to Telegram with file-size validation;
 - optional LLM chat through an OpenAI-compatible API;
+- optional LLM agent mode with a model-selected web-search tool;
 - optional voice and audio transcription with Whisper;
 - link moderation and an admin-only command for posting as the bot;
 - Mini App launch from the menu button, `/games`, or inline mode;
@@ -55,6 +56,9 @@ You need Docker with the Compose Plugin and a Telegram bot created through [@Bot
    LLM_BASE_URL=http://host.docker.internal:11434/v1
    LLM_API_KEY=dummy
    LLM_MODEL=gemma4:e4b
+   LLM_WEB_SEARCH_ENABLED=false
+   LLM_WEB_SEARCH_MAX_RESULTS=5
+   LLM_TIMEZONE=Asia/Almaty
 
    # Optional: Whisper
    WHISPER_ENABLED=false
@@ -144,8 +148,9 @@ The callback handler builds a current launch URL containing a signed Telegram us
 | `LLM_COOLDOWN_SECONDS` | `5.0` | delay before an LLM request |
 | `LLM_MAX_TOKENS` | `480` | maximum LLM response length |
 | `LLM_TEMPERATURE` | `0.6` | generation temperature |
-| `LLM_WEB_SEARCH_ENABLED` | `false` | enable LLM web search |
-| `LLM_WEB_SEARCH_MAX_RESULTS` | `5` | maximum web search results |
+| `LLM_WEB_SEARCH_ENABLED` | `false` | give the LLM a web-search tool that it may call when needed |
+| `LLM_WEB_SEARCH_MAX_RESULTS` | `5` | maximum results per search |
+| `LLM_TIMEZONE` | `Asia/Almaty` | timezone used for the current date and time in the LLM context |
 | `WHISPER_ENABLED` | `false` | enable transcription |
 | `WHISPER_MODEL_SIZE` | `base` | Whisper model size |
 | `WHISPER_DEVICE` | `cpu` | Whisper device |
