@@ -22,7 +22,7 @@ dp = Dispatcher()
 
 _BANNER = """\
 ┌──────────────────────────────────────────────┐
-│   🐾 Cattemis bot started! Meow meow meow    │
+│   Cattemis started! MMMMEEEEEEOOOOOOOOWWW    │
 └──────────────────────────────────────────────┘"""
 
 
