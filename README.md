@@ -55,7 +55,7 @@ You need Docker with the Compose Plugin and a Telegram bot created through [@Bot
    LLM_ENABLED=false
    LLM_BASE_URL=http://host.docker.internal:11434/v1
    LLM_API_KEY=dummy
-   LLM_MODEL=gemma4:e4b
+   LLM_MODEL=gemma-4-26b-a4b-it
    LLM_REQUEST_TIMEOUT_SECONDS=120
    LLM_WEB_SEARCH_ENABLED=false
    LLM_WEB_SEARCH_MAX_RESULTS=5
