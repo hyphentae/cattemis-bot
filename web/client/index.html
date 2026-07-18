@@ -122,11 +122,21 @@
 
       <div class="sudoku-meta">
         <span>ошибки <strong id="sudoku-mistakes">0</strong></span>
+        <span>время <strong id="sudoku-time">00:00</strong></span>
         <button id="new-sudoku" type="button">новая сетка</button>
+      </div>
+      <div class="game-difficulties" id="sudoku-difficulties" aria-label="Сложность судоку">
+        <button type="button" data-difficulty="easy">лёгкий</button>
+        <button type="button" data-difficulty="medium">средний</button>
+        <button type="button" data-difficulty="hard">сложный</button>
       </div>
       <div class="status-bar" id="sudoku-status" aria-live="polite">выбери пустую клеточку, хозяин</div>
       <div class="sudoku-board" id="sudoku-board" role="grid" aria-label="Поле судоку"></div>
       <div class="sudoku-keypad" id="sudoku-keypad" aria-label="Цифры судоку"></div>
+      <section class="leaderboard" aria-label="Таблица лидеров судоку">
+        <h3>лучшие результаты</h3>
+        <div id="sudoku-leaderboard"></div>
+      </section>
     </main>
   </section>
 
@@ -324,6 +334,10 @@
         <div class="mines-board" id="mines-board" role="grid" aria-label="Поле сапёра"></div>
       </div>
       <button class="restart-btn" id="restart-minesweeper" type="button">новое поле</button>
+      <section class="leaderboard" aria-label="Таблица лидеров сапёра">
+        <h3>лучшие результаты</h3>
+        <div id="mines-leaderboard"></div>
+      </section>
     </main>
   </section>
 

@@ -14,5 +14,10 @@ interface TelegramWebApp {
 }
 
 interface Window {
-  Telegram?: { WebApp?: TelegramWebApp };
+  Telegram?: {
+    WebApp?: TelegramWebApp;
+    WebView?: {
+      postEvent?(eventType: string, callback: boolean, eventData: Record<string, unknown>): void;
+    };
+  };
 }

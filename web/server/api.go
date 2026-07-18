@@ -15,6 +15,7 @@ type server struct {
 	chess    *chessRoomManager
 	canvas   *canvasManager
 	ttt      *ticTacToeManager
+	leaders  *leaderboardManager
 }
 
 func newServer(botToken string) *server {
@@ -22,11 +23,51 @@ func newServer(botToken string) *server {
 	if canvasPath == "" {
 		canvasPath = "/data/canvas.json"
 	}
+	leaderboardPath := os.Getenv("LEADERBOARD_PATH")
+	if leaderboardPath == "" {
+		leaderboardPath = "/data/leaderboard.json"
+	}
 	return &server{
 		botToken: botToken, rooms: newRoomManager(), chess: newChessRoomManager(),
 		canvas: newCanvasManager(canvasPath),
 		ttt:    newTicTacToeManager(),
+		leaders: newLeaderboardManager(leaderboardPath),
 	}
+}
+
+func (s *server) leaderboard(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.authorize(w, r)
+	if !ok {
+		return
+	}
+	if r.Method == http.MethodGet {
+		view, err := s.leaders.view(r.URL.Query().Get("game"), r.URL.Query().Get("difficulty"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, view)
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		return
+	}
+	var request struct {
+		Game       string `json:"game"`
+		Difficulty string `json:"difficulty"`
+		Seconds    int    `json:"seconds"`
+		Mistakes   int    `json:"mistakes"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	view, err := s.leaders.submit(user, request.Game, request.Difficulty, request.Seconds, request.Mistakes)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 func (s *server) createTTTRoom(w http.ResponseWriter, r *http.Request) {

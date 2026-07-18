@@ -1,14 +1,10 @@
-const BASE_PUZZLE = [
-  '530070000',
-  '600195000',
-  '098000060',
-  '800060003',
-  '400803001',
-  '700020006',
-  '060000280',
-  '000419005',
-  '000080079',
-].join('');
+import { formatGameTime, loadLeaderboard, submitLeaderboardScore } from './leaderboard.ts';
+
+const DIFFICULTIES = {
+  easy: { givens: 40 },
+  medium: { givens: 32 },
+  hard: { givens: 26 },
+};
 
 const BASE_SOLUTION = [
   '534678912',
@@ -63,17 +59,76 @@ function rotateGrid(grid) {
   return rotated.join('');
 }
 
-export function createSudokuPuzzle() {
+function countSolutions(grid, limit = 2) {
+  const cells = [...grid];
+  let count = 0;
+  const solve = () => {
+    if (count >= limit) return;
+    let target = -1;
+    let candidates = [];
+    for (let index = 0; index < 81; index += 1) {
+      if (cells[index] !== '0') continue;
+      const available = possibleValues(cells, index);
+      if (!available.length) return;
+      if (target === -1 || available.length < candidates.length) {
+        target = index;
+        candidates = available;
+        if (available.length === 1) break;
+      }
+    }
+    if (target === -1) {
+      count += 1;
+      return;
+    }
+    for (const value of candidates) {
+      cells[target] = value;
+      solve();
+      cells[target] = '0';
+      if (count >= limit) return;
+    }
+  };
+  solve();
+  return count;
+}
+
+function possibleValues(cells, index) {
+  const row = Math.floor(index / 9);
+  const col = index % 9;
+  const used = new Set();
+  for (let offset = 0; offset < 9; offset += 1) {
+    used.add(cells[row * 9 + offset]);
+    used.add(cells[offset * 9 + col]);
+  }
+  const boxRow = Math.floor(row / 3) * 3;
+  const boxCol = Math.floor(col / 3) * 3;
+  for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
+    for (let colOffset = 0; colOffset < 3; colOffset += 1) {
+      used.add(cells[(boxRow + rowOffset) * 9 + boxCol + colOffset]);
+    }
+  }
+  return ['1', '2', '3', '4', '5', '6', '7', '8', '9'].filter((value) => !used.has(value));
+}
+
+export function createSudokuPuzzle(difficulty = 'medium') {
   const digits = shuffle(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
   const digitMap = new Map(digits.map((digit, index) => [String(index + 1), digit]));
   const remap = (grid) => [...grid].map((value) => value === '0' ? '0' : digitMap.get(value)).join('');
-  let puzzle = remap(BASE_PUZZLE);
   let solution = remap(BASE_SOLUTION);
   const rotations = Math.floor(Math.random() * 4);
   for (let count = 0; count < rotations; count += 1) {
-    puzzle = rotateGrid(puzzle);
     solution = rotateGrid(solution);
   }
+  const cells = [...solution];
+  let givens = 81;
+  const target = DIFFICULTIES[difficulty]?.givens ?? DIFFICULTIES.medium.givens;
+  for (const index of shuffle(Array.from({ length: 81 }, (_, value) => value))) {
+    if (givens <= target) break;
+    const previous = cells[index];
+    cells[index] = '0';
+    if (countSolutions(cells.join('')) !== 1) cells[index] = previous;
+    else givens -= 1;
+  }
+  const puzzle = cells.join('');
   return { puzzle, solution };
 }
 
@@ -86,6 +141,9 @@ export function initSudoku({ telegram, showScreen }) {
     keypad: document.getElementById('sudoku-keypad'),
     status: document.getElementById('sudoku-status'),
     mistakes: document.getElementById('sudoku-mistakes'),
+    time: document.getElementById('sudoku-time'),
+    difficulties: document.getElementById('sudoku-difficulties'),
+    leaderboard: document.getElementById('sudoku-leaderboard'),
     screen: document.getElementById('screen-sudoku'),
   };
 
@@ -97,19 +155,32 @@ export function initSudoku({ telegram, showScreen }) {
   let completed = false;
   let cellEffect = null;
   let revealBoard = false;
+  let difficulty = 'medium';
+  let elapsed = 0;
+  let timer = null;
 
   elements.open.addEventListener('click', () => {
     newGame();
     showScreen('sudoku');
   });
-  elements.leave.addEventListener('click', () => showScreen('menu'));
+  elements.leave.addEventListener('click', () => {
+    stopTimer();
+    showScreen('menu');
+  });
   elements.fresh.addEventListener('click', newGame);
+  elements.difficulties.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest<HTMLElement>('[data-difficulty]');
+    if (!button || button.dataset.difficulty === difficulty) return;
+    difficulty = button.dataset.difficulty;
+    newGame();
+  });
   document.addEventListener('keydown', handleKeydown);
 
   buildKeypad();
 
   function newGame() {
-    ({ puzzle, solution } = createSudokuPuzzle());
+    stopTimer();
+    ({ puzzle, solution } = createSudokuPuzzle(difficulty));
     values = [...puzzle];
     selected = firstEmptyCell();
     mistakes = 0;
@@ -117,8 +188,13 @@ export function initSudoku({ telegram, showScreen }) {
     cellEffect = null;
     revealBoard = true;
     elements.mistakes.textContent = '0';
+    elapsed = 0;
+    elements.time.textContent = '00:00';
+    updateDifficultyButtons();
     setStatus(randomPhrase(PHRASES.ready));
     renderBoard();
+    startTimer();
+    void refreshLeaderboard();
   }
 
   function buildKeypad() {
@@ -206,8 +282,17 @@ export function initSudoku({ telegram, showScreen }) {
 
     if (values.every((cell, index) => cell === solution[index])) {
       completed = true;
+      stopTimer();
       setStatus('всё сошлось! хозяин, ты настоящий гений, мяу :3', 'win');
       telegram?.HapticFeedback?.notificationOccurred('success');
+      void submitLeaderboardScore({
+        telegram,
+        game: 'sudoku',
+        difficulty,
+        seconds: Math.max(1, elapsed),
+        mistakes,
+        element: elements.leaderboard,
+      });
     }
     renderBoard();
   }
@@ -251,6 +336,31 @@ export function initSudoku({ telegram, showScreen }) {
 
   function firstEmptyCell() {
     return [...puzzle].findIndex((value) => value === '0');
+  }
+
+  function updateDifficultyButtons() {
+    elements.difficulties.querySelectorAll<HTMLElement>('[data-difficulty]').forEach((button) => {
+      const selectedDifficulty = button.dataset.difficulty === difficulty;
+      button.classList.toggle('selected', selectedDifficulty);
+      button.setAttribute('aria-pressed', String(selectedDifficulty));
+    });
+  }
+
+  function startTimer() {
+    timer = window.setInterval(() => {
+      elapsed = Math.min(86400, elapsed + 1);
+      elements.time.textContent = formatGameTime(elapsed);
+      if (elapsed === 86400) stopTimer();
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timer !== null) window.clearInterval(timer);
+    timer = null;
+  }
+
+  function refreshLeaderboard() {
+    return loadLeaderboard({ telegram, game: 'sudoku', difficulty, element: elements.leaderboard });
   }
 
   function isRelated(left, right) {
