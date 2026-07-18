@@ -6,7 +6,6 @@ deleted automatically.  Admin messages are always allowed through.
 Public API:
 - ``moderate_links(message)`` — delete if necessary, return ``(deleted, urls)``.
 - ``is_admin_message(message)`` — check whether the message author is an admin.
-- ``can_use_say(message)`` — check whether the author may use /say_cattemis.
 """
 
 import logging
@@ -32,7 +31,7 @@ from .downloaders.tiktok import TIKTOK_DOMAINS
 from .downloaders.instagram import INSTAGRAM_DOMAINS
 from .downloaders.reddit import REDDIT_DOMAINS
 from .downloaders.twitter import TWITTER_DOMAINS
-from .downloaders.ytdlp import YOUTUBE_DOMAINS, VIMEO_DOMAINS
+from .downloaders.ytdlp import YOUTUBE_DOMAINS
 from .utils.media import MEDIA_EXTS
 
 _ALLOWED_MEDIA_HOSTS: frozenset[str] = (
@@ -40,7 +39,6 @@ _ALLOWED_MEDIA_HOSTS: frozenset[str] = (
     | INSTAGRAM_DOMAINS
     | TWITTER_DOMAINS
     | YOUTUBE_DOMAINS
-    | VIMEO_DOMAINS
     | REDDIT_DOMAINS
 )
 
@@ -110,13 +108,6 @@ async def is_admin_message(message: Message) -> bool:
         return False
     admin_ids = await _get_admin_ids(message.chat.id)
     return message.from_user.id in admin_ids
-
-
-async def can_use_say(message: Message) -> bool:
-    """Return True if the message author may use /say_cattemis."""
-    if message.chat.type == "private":
-        return True
-    return await is_admin_message(message)
 
 
 # ---------------------------------------------------------------------------

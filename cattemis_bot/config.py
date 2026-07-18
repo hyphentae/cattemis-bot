@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     reddit_client_secret: str = ""
     reddit_user_agent: str = "linux:cattemis-bot:v1.0 (by /u/your_username)"
 
+    # --- Donations ---
+    kofi_url: str = ""
+
     # --- LLM ---
     llm_enabled: bool = False
     llm_base_url: str = "http://localhost:11434/v1"
@@ -47,7 +50,7 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"
 
     # --- Downloader limits ---
-    max_media_items: int = 10
+    max_media_items: int = 50
     retry_attempts: int = 2
     retry_delay: float = 1.2
 

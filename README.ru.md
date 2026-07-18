@@ -6,7 +6,7 @@
 
 ## Возможности
 
-- загрузка медиа из TikTok, Instagram, X/Twitter, YouTube, Vimeo и прямых ссылок;
+- загрузка медиа из TikTok, Instagram, X/Twitter, YouTube и Reddit;
 - отправка фото и видео в Telegram с проверкой размера;
 - необязательный LLM-чат через OpenAI-совместимый API;
 - агентный режим LLM с веб-поиском, который модель вызывает самостоятельно;
@@ -126,11 +126,12 @@ https://t.me/cattemis_bot?game=chess
 | Команда | Назначение |
 |---|---|
 | `/help` | справка |
+| `/donate` | поддержать бота через Telegram Stars или Ko-fi |
+| `/paysupport` | помощь с платежами |
 | `/ping` | проверка доступности бота |
 | `/games` | выбор зарегистрированной HTML5-игры |
 | `/ttt` | крестики-нолики в сообщениях Telegram |
 | `/checkers` | шашки в сообщениях Telegram |
-| `/say_cattemis <текст>` | отправить текст от имени бота; в группах доступно администраторам |
 | `/stats` | статистика текущего процесса |
 | `/reset` | очистить историю LLM для текущего чата |
 
@@ -141,6 +142,7 @@ https://t.me/cattemis_bot?game=chess
 | `BOT_TOKEN` | — | обязательный токен Telegram Bot API |
 | `APIFY_TOKEN` | пусто | токен Apify для Instagram |
 | `APIFY_INSTAGRAM_ACTOR` | `elis~instagram-downloader-api` | actor для Instagram |
+| `KOFI_URL` | пусто | страница Ko-fi для команды `/donate` |
 | `LLM_ENABLED` | `false` | включить LLM-ответы |
 | `LLM_BASE_URL` | `http://localhost:11434/v1` | OpenAI-совместимый endpoint |
 | `LLM_API_KEY` | `dummy` | ключ LLM endpoint |
@@ -157,7 +159,7 @@ https://t.me/cattemis_bot?game=chess
 | `WHISPER_MODEL_SIZE` | `base` | размер модели Whisper |
 | `WHISPER_DEVICE` | `cpu` | устройство Whisper |
 | `WHISPER_COMPUTE_TYPE` | `int8` | тип вычислений Whisper |
-| `MAX_MEDIA_ITEMS` | `10` | файлов в одной загрузке |
+| `MAX_MEDIA_ITEMS` | `50` | файлов в одной загрузке; отправляются альбомами до 10 |
 | `MAX_FILE_SIZE` | `52428800` | предел одного файла в байтах |
 | `RETRY_ATTEMPTS` | `2` | число повторных попыток загрузки |
 | `RETRY_DELAY` | `1.2` | задержка между попытками |

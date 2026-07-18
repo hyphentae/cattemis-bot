@@ -85,12 +85,11 @@ async def send_local_media(
     """Send one or more local media files as a Telegram message.
 
     - Single file: sent as photo / video / audio / document depending on extension.
-    - Multiple files: photos and videos are grouped into a media album; audio
-      and other formats are sent individually.
+    - Multiple files: photos and videos are grouped into batches of up to 10;
+      audio and other formats are sent individually.
     - Files larger than ``MAX_FILE_SIZE`` are skipped with a warning.
     - If *reply_to_message_id* is given, the media is sent as a reply to that message.
     """
-    files = files[:10]
     if not files:
         raise RuntimeError("Нет файлов для отправки")
 
@@ -154,17 +153,13 @@ async def _send_album(
     reply_params: ReplyParameters | None = None,
 ) -> None:
     """Send multiple local files as a media album + individual leftovers."""
-    album: list[InputMediaPhoto | InputMediaVideo] = []
+    album_files: list[str] = []
     leftovers: list[str] = []
 
-    for i, path in enumerate(files):
+    for path in files:
         ext = Path(path).suffix.lower()
-        item_caption = caption if i == 0 and caption else None
-
-        if ext in IMAGE_EXTS:
-            album.append(InputMediaPhoto(media=FSInputFile(path), caption=item_caption))
-        elif ext in VIDEO_EXTS:
-            album.append(InputMediaVideo(media=FSInputFile(path), caption=item_caption))
+        if ext in IMAGE_EXTS or ext in VIDEO_EXTS:
+            album_files.append(path)
         else:
             leftovers.append(path)
 
@@ -172,12 +167,30 @@ async def _send_album(
     if reply_params:
         album_kwargs["reply_parameters"] = reply_params
 
-    if album:
-        await tg_call(message.answer_media_group, media=album, **album_kwargs)
+    caption_sent = False
+    for start in range(0, len(album_files), 10):
+        chunk = album_files[start : start + 10]
+        chunk_caption = caption if not caption_sent else None
+
+        if len(chunk) == 1:
+            await _send_single(message, chunk[0], chunk_caption, reply_params)
+        else:
+            album: list[InputMediaPhoto | InputMediaVideo] = []
+            for i, path in enumerate(chunk):
+                ext = Path(path).suffix.lower()
+                item_caption = chunk_caption if i == 0 else None
+                if ext in IMAGE_EXTS:
+                    album.append(InputMediaPhoto(media=FSInputFile(path), caption=item_caption))
+                else:
+                    album.append(InputMediaVideo(media=FSInputFile(path), caption=item_caption))
+            await tg_call(message.answer_media_group, media=album, **album_kwargs)
+
+        if chunk_caption:
+            caption_sent = True
 
     for i, path in enumerate(leftovers):
         ext = Path(path).suffix.lower()
-        item_caption = caption if not album and i == 0 else None
+        item_caption = caption if not caption_sent and i == 0 else None
         leftover_kwargs = {"caption": item_caption}
         if reply_params:
             leftover_kwargs["reply_parameters"] = reply_params

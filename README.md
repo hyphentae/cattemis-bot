@@ -6,7 +6,7 @@
 
 ## Features
 
-- downloads media from TikTok, Instagram, X/Twitter, YouTube, Vimeo, and direct links;
+- downloads media from TikTok, Instagram, X/Twitter, YouTube, and Reddit;
 - sends photos and videos to Telegram with file-size validation;
 - optional LLM chat through an OpenAI-compatible API;
 - optional LLM agent mode with a model-selected web-search tool;
@@ -126,11 +126,12 @@ The callback handler builds a current launch URL containing a signed Telegram us
 | Command | Description |
 |---|---|
 | `/help` | show help |
+| `/donate` | support the bot with Telegram Stars or Ko-fi |
+| `/paysupport` | payment support information |
 | `/ping` | check whether the bot is available |
 | `/games` | open the registered HTML5 game picker |
 | `/ttt` | play tic-tac-toe in Telegram messages |
 | `/checkers` | play checkers in Telegram messages |
-| `/say_cattemis <text>` | post as the bot; restricted to administrators in groups |
 | `/stats` | show statistics for the current process |
 | `/reset` | clear LLM history for the current chat |
 
@@ -141,6 +142,7 @@ The callback handler builds a current launch URL containing a signed Telegram us
 | `BOT_TOKEN` | — | required Telegram Bot API token |
 | `APIFY_TOKEN` | empty | Apify token for Instagram |
 | `APIFY_INSTAGRAM_ACTOR` | `elis~instagram-downloader-api` | Instagram actor |
+| `KOFI_URL` | empty | Ko-fi page shown by `/donate` |
 | `LLM_ENABLED` | `false` | enable LLM responses |
 | `LLM_BASE_URL` | `http://localhost:11434/v1` | OpenAI-compatible endpoint |
 | `LLM_API_KEY` | `dummy` | LLM endpoint API key |
@@ -157,7 +159,7 @@ The callback handler builds a current launch URL containing a signed Telegram us
 | `WHISPER_MODEL_SIZE` | `base` | Whisper model size |
 | `WHISPER_DEVICE` | `cpu` | Whisper device |
 | `WHISPER_COMPUTE_TYPE` | `int8` | Whisper compute type |
-| `MAX_MEDIA_ITEMS` | `10` | files in one download batch |
+| `MAX_MEDIA_ITEMS` | `50` | files per download; sent in albums of up to 10 |
 | `MAX_FILE_SIZE` | `52428800` | maximum file size in bytes |
 | `RETRY_ATTEMPTS` | `2` | number of download retries |
 | `RETRY_DELAY` | `1.2` | delay between retries |
