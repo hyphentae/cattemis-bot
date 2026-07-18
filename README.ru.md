@@ -56,6 +56,7 @@
    LLM_BASE_URL=http://host.docker.internal:11434/v1
    LLM_API_KEY=dummy
    LLM_MODEL=gemma4:e4b
+   LLM_REQUEST_TIMEOUT_SECONDS=120
    LLM_WEB_SEARCH_ENABLED=false
    LLM_WEB_SEARCH_MAX_RESULTS=5
    LLM_TIMEZONE=Asia/Almaty
@@ -146,6 +147,7 @@ https://t.me/cattemis_bot?game=chess
 | `LLM_MODEL` | `gemma4:e4b` | название модели |
 | `LLM_SYSTEM_PROMPT` | встроенный | системный промпт |
 | `LLM_COOLDOWN_SECONDS` | `5.0` | задержка перед LLM-запросом |
+| `LLM_REQUEST_TIMEOUT_SECONDS` | `120.0` | максимальное ожидание ответа LLM |
 | `LLM_MAX_TOKENS` | `480` | максимальный ответ LLM |
 | `LLM_TEMPERATURE` | `0.6` | температура генерации |
 | `LLM_WEB_SEARCH_ENABLED` | `false` | дать LLM инструмент веб-поиска, решение о вызове принимает сама модель |

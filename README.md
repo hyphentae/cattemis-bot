@@ -56,6 +56,7 @@ You need Docker with the Compose Plugin and a Telegram bot created through [@Bot
    LLM_BASE_URL=http://host.docker.internal:11434/v1
    LLM_API_KEY=dummy
    LLM_MODEL=gemma4:e4b
+   LLM_REQUEST_TIMEOUT_SECONDS=120
    LLM_WEB_SEARCH_ENABLED=false
    LLM_WEB_SEARCH_MAX_RESULTS=5
    LLM_TIMEZONE=Asia/Almaty
@@ -146,6 +147,7 @@ The callback handler builds a current launch URL containing a signed Telegram us
 | `LLM_MODEL` | `gemma4:e4b` | model name |
 | `LLM_SYSTEM_PROMPT` | built in | system prompt |
 | `LLM_COOLDOWN_SECONDS` | `5.0` | delay before an LLM request |
+| `LLM_REQUEST_TIMEOUT_SECONDS` | `120.0` | maximum wait time for an LLM response |
 | `LLM_MAX_TOKENS` | `480` | maximum LLM response length |
 | `LLM_TEMPERATURE` | `0.6` | generation temperature |
 | `LLM_WEB_SEARCH_ENABLED` | `false` | give the LLM a web-search tool that it may call when needed |
