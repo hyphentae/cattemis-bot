@@ -1,6 +1,6 @@
 """yt-dlp downloader for Cattemis Bot.
 
-Downloads video/audio from YouTube, Vimeo, and any other site supported by
+Downloads video/audio from YouTube, and any other site supported by
 yt-dlp.  The blocking download is run in an executor to avoid blocking the
 event loop.  Produces a ``DownloadResult`` with one local temp file.
 """
@@ -31,8 +31,6 @@ YOUTUBE_DOMAINS: frozenset[str] = frozenset(
     }
 )
 
-VIMEO_DOMAINS: frozenset[str] = frozenset({"vimeo.com", "www.vimeo.com"})
-
 _YTDLP_FORMAT: str = "bv*[height<=1080]+ba/b[height<=1080]"
 _SKIP_SUFFIXES: frozenset[str] = frozenset({".part", ".ytdl", ".temp"})
 
@@ -47,16 +45,6 @@ def is_youtube(url: str) -> bool:
     except Exception:
         return False
     return any(host == d or host.endswith("." + d) for d in YOUTUBE_DOMAINS)
-
-
-def is_vimeo(url: str) -> bool:
-    from urllib.parse import urlparse
-    try:
-        host = urlparse(url).netloc.lower()
-    except Exception:
-        return False
-    return any(host == d or host.endswith("." + d) for d in VIMEO_DOMAINS)
-
 
 # ---------------------------------------------------------------------------
 # Human-readable error messages

@@ -203,18 +203,32 @@ async def _handle_tiktok(message: Message, url: str, status: Message) -> None:
     async with state.get_lock(message.chat.id):
         images = data.get("images") or []
         if images:
-            media = [
-                InputMediaPhoto(
-                    media=img,
-                    caption=title if i == 0 and title else None,
+            images = images[: settings.max_media_items]
+            for start in range(0, len(images), 10):
+                chunk = images[start : start + 10]
+                chunk_title = title if start == 0 else None
+
+                if len(chunk) == 1:
+                    await tg_call(
+                        message.answer_photo,
+                        photo=chunk[0],
+                        caption=chunk_title,
+                        reply_parameters=reply_params,
+                    )
+                    continue
+
+                media = [
+                    InputMediaPhoto(
+                        media=img,
+                        caption=chunk_title if i == 0 else None,
+                    )
+                    for i, img in enumerate(chunk)
+                ]
+                await tg_call(
+                    message.answer_media_group,
+                    media=media,
+                    reply_parameters=reply_params,
                 )
-                for i, img in enumerate(images[:10])
-            ]
-            await tg_call(
-                message.answer_media_group,
-                media=media,
-                reply_parameters=reply_params,
-            )
             await safe_delete_message(status)
             return
 
