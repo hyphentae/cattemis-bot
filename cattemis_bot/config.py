@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     apify_token: str = ""
     apify_instagram_actor: str = "elis~instagram-downloader-api"
 
+    # --- Reddit API (image posts and galleries) ---
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_user_agent: str = "linux:cattemis-bot:v1.0 (by /u/your_username)"
+
     # --- LLM ---
     llm_enabled: bool = False
     llm_base_url: str = "http://localhost:11434/v1"
@@ -28,10 +33,12 @@ class Settings(BaseSettings):
         "Не выдумывай факты. Если не уверен — честно скажи об этом."
     )
     llm_cooldown_seconds: float = 5.0
+    llm_request_timeout_seconds: float = 120.0
     llm_max_tokens: int = 480
     llm_temperature: float = 0.6
     llm_web_search_enabled: bool = False
     llm_web_search_max_results: int = 5
+    llm_timezone: str = "Asia/Almaty"
 
     # --- Whisper (voice / audio transcription) ---
     whisper_enabled: bool = False

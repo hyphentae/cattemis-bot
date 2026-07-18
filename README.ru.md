@@ -9,6 +9,7 @@
 - загрузка медиа из TikTok, Instagram, X/Twitter, YouTube, Vimeo и прямых ссылок;
 - отправка фото и видео в Telegram с проверкой размера;
 - необязательный LLM-чат через OpenAI-совместимый API;
+- агентный режим LLM с веб-поиском, который модель вызывает самостоятельно;
 - необязательная расшифровка голосовых и аудио через Whisper;
 - модерация ссылок и команда отправки сообщений от имени бота;
 - запуск Mini App из кнопки меню, команды `/games` или inline-режима;
@@ -55,6 +56,10 @@
    LLM_BASE_URL=http://host.docker.internal:11434/v1
    LLM_API_KEY=dummy
    LLM_MODEL=gemma4:e4b
+   LLM_REQUEST_TIMEOUT_SECONDS=120
+   LLM_WEB_SEARCH_ENABLED=false
+   LLM_WEB_SEARCH_MAX_RESULTS=5
+   LLM_TIMEZONE=Asia/Almaty
 
    # Необязательно: Whisper
    WHISPER_ENABLED=false
@@ -142,10 +147,12 @@ https://t.me/cattemis_bot?game=chess
 | `LLM_MODEL` | `gemma4:e4b` | название модели |
 | `LLM_SYSTEM_PROMPT` | встроенный | системный промпт |
 | `LLM_COOLDOWN_SECONDS` | `5.0` | задержка перед LLM-запросом |
+| `LLM_REQUEST_TIMEOUT_SECONDS` | `120.0` | максимальное ожидание ответа LLM |
 | `LLM_MAX_TOKENS` | `480` | максимальный ответ LLM |
 | `LLM_TEMPERATURE` | `0.6` | температура генерации |
-| `LLM_WEB_SEARCH_ENABLED` | `false` | включить веб-поиск для LLM |
-| `LLM_WEB_SEARCH_MAX_RESULTS` | `5` | число результатов веб-поиска |
+| `LLM_WEB_SEARCH_ENABLED` | `false` | дать LLM инструмент веб-поиска, решение о вызове принимает сама модель |
+| `LLM_WEB_SEARCH_MAX_RESULTS` | `5` | максимум результатов одного поиска |
+| `LLM_TIMEZONE` | `Asia/Almaty` | часовой пояс для текущей даты и времени LLM |
 | `WHISPER_ENABLED` | `false` | включить транскрибацию |
 | `WHISPER_MODEL_SIZE` | `base` | размер модели Whisper |
 | `WHISPER_DEVICE` | `cpu` | устройство Whisper |

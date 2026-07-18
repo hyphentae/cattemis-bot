@@ -1,12 +1,4 @@
-"""Text processing utilities for Cattemis Bot.
-
-Provides:
-- ``strip_unicode_emoji`` — remove emoji characters from a string.
-- ``cleanup_llm_text`` — clean up raw LLM output for Telegram display.
-- ``fix_truncated_kaomoji`` — repair cut-off kaomoji at end of string.
-- ``extract_urls_from_message`` — collect unique URLs from a Telegram message.
-- ``truncate`` — cap a string to a maximum length.
-"""
+"""Text processing utilities for Cattemis Bot."""
 
 import re
 from urllib.parse import urlparse
@@ -17,56 +9,23 @@ from aiogram.types import Message
 # Emoji stripping
 # ---------------------------------------------------------------------------
 
-EMOJI_RE = re.compile(
-    "["
-    "\U0001F300-\U0001F5FF"
-    "\U0001F600-\U0001F64F"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F700-\U0001F77F"
-    "\U0001F780-\U0001F7FF"
-    "\U0001F800-\U0001F8FF"
-    "\U0001F900-\U0001F9FF"
-    "\U0001FA00-\U0001FAFF"
-    "\U00002600-\U000026FF"
-    "\U00002700-\U000027BF"
-    "]+",
-    flags=re.UNICODE,
+PROTOCOL_MARKER_RE = re.compile(
+    r"<\|(?:/?(?:channel|message|analysis|final|thought|commentary|end|start))\|>"
+    r"|<channel\|>"
+    r"|\b(?:thought|analysis|commentary|final)\s*(?=<\|?channel\|>)",
+    flags=re.IGNORECASE,
 )
 
 
-def strip_unicode_emoji(text: str) -> str:
-    """Remove Unicode emoji characters from *text*."""
-    return EMOJI_RE.sub("", text)
+def strip_protocol_markers(text: str) -> str:
+    """Remove leaked model channel markers without altering user-facing text."""
+    return PROTOCOL_MARKER_RE.sub("", text)
 
 
-# ---------------------------------------------------------------------------
-# LLM output cleanup
-# ---------------------------------------------------------------------------
-
-def cleanup_llm_text(text: str) -> str:
-    """Normalise raw LLM output for Telegram.
-
-    - Strips emoji.
-    - Removes Markdown bold markers (``**`` / ``*``).
-    - Collapses repeated spaces and blank lines.
-    - Collapses repeated punctuation.
-    """
-    text = strip_unicode_emoji(text)
-    text = text.replace("**", "").replace("*", "")
-    text = re.sub(r"[ \t]{2,}", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r" ?([,.;:!?]){2,}", r"\1", text)
-    return text.strip()
-
-
-def fix_truncated_kaomoji(text: str) -> str:
-    """Attempt to close a kaomoji that was cut off at the end of *text*."""
-    if not text:
-        return text
-    if re.search(r">\/{2,}$", text):
-        text += "<"
-    if text.endswith(">///"):
-        text += "/<"
+def repair_truncated_kaomoji(text: str) -> str:
+    """Restore a missing closing ``<`` on supported truncated kaomoji."""
+    if text.endswith((">///", ">w")):
+        return text + "<"
     return text
 
 

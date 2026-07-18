@@ -38,6 +38,9 @@ FXTWITTER_TIMEOUT: float = 40.0
 _MEDIA_URL_KEYS: frozenset[str] = frozenset(
     {"url", "media", "image", "photo", "video", "playback", "source", "src"}
 )
+_PREVIEW_URL_KEYS: frozenset[str] = frozenset(
+    {"thumbnail", "thumb", "preview", "poster"}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +79,33 @@ def parse_twitter_url(url: str) -> tuple[str, str] | None:
 # ---------------------------------------------------------------------------
 
 def _extract_twitter_media_urls(payload: dict) -> list[str]:
-    """Recursively walk the FxTwitter media object and collect URLs."""
+    """Return one direct URL for each FxTwitter media item.
+
+    FxTwitter returns video previews in ``thumbnail_url`` beside the playable
+    URL.  Recursively collecting every URL sends that preview as a photo and
+    can send several representations of the same video.  Prefer the documented
+    ``videos``/``photos`` collections instead.
+    """
+    tweet = payload.get("tweet", payload)
+    media = tweet.get("media", {}) if isinstance(tweet, dict) else {}
+    if not isinstance(media, dict):
+        return []
+
+    for media_key in ("videos", "photos"):
+        items = media.get(media_key)
+        if not isinstance(items, list):
+            continue
+        urls = [
+            item["url"]
+            for item in items
+            if isinstance(item, dict)
+            and isinstance(item.get("url"), str)
+            and item["url"].startswith(("http://", "https://"))
+        ]
+        if urls:
+            return list(dict.fromkeys(urls))
+
+    # Keep a conservative fallback for unexpected FxTwitter response shapes.
     found: list[str] = []
 
     def walk(value: object) -> None:
@@ -84,15 +113,16 @@ def _extract_twitter_media_urls(payload: dict) -> list[str]:
             for k, v in value.items():
                 key = str(k).lower()
                 if isinstance(v, str) and v.startswith(("http://", "https://")):
-                    if any(x in key for x in _MEDIA_URL_KEYS):
+                    if (
+                        any(x in key for x in _MEDIA_URL_KEYS)
+                        and not any(preview in key for preview in _PREVIEW_URL_KEYS)
+                    ):
                         found.append(v)
                 walk(v)
         elif isinstance(value, list):
             for item in value:
                 walk(item)
 
-    tweet = payload.get("tweet", payload)
-    media = tweet.get("media", {}) if isinstance(tweet, dict) else {}
     walk(media)
     return list(dict.fromkeys(found))
 

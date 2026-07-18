@@ -5,20 +5,76 @@ Wraps an OpenAI-compatible API (Ollama by default) with:
 - Per-chat message history trimming.
 - Output post-processing (emoji removal, kaomoji repair).
 - Optional media_context (Whisper transcriptions) injected into the user turn.
+- Optional agent loop with a model-selected web-search tool.
 
 The ``ask_llm`` coroutine is the single public interface.
 """
 
 import asyncio
+import json
 import logging
+import re
+from datetime import datetime
+from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from openai import AsyncOpenAI
 
 from .config import settings
 from .state import state
-from .utils.text import cleanup_llm_text, fix_truncated_kaomoji
+from .utils.text import repair_truncated_kaomoji, strip_protocol_markers
+from .web_search import format_search_context, search_web
 
 logger = logging.getLogger(__name__)
+
+_WEB_SEARCH_TOOL: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "web_search",
+        "description": (
+            "Search the internet for current or niche information. Use this "
+            "when the answer may have changed, needs sources, or is not known. "
+            "Do not use it for casual conversation or stable general knowledge."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "A precise search query in the user's language.",
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+MAX_AGENT_STEPS = 3
+
+
+def strip_model_control_tokens(text: str) -> str:
+    """Remove leaked chat-template control markers while preserving content."""
+    text = re.sub(r"<\|channel\|>\s*", "", text)
+    text = re.sub(r"<channel\|>\s*", "", text)
+    text = re.sub(r"<\|(?:im_start|im_end|end|eot|assistant|user|system)\|>", "", text)
+    text = re.sub(r"</?(?:analysis|think)>\s*", "", text, flags=re.IGNORECASE)
+    return text
+
+
+def current_time_context() -> str:
+    """Return the current local date/time for the model's system context."""
+    timezone_name = settings.llm_timezone
+    try:
+        now = datetime.now(ZoneInfo(timezone_name))
+    except ZoneInfoNotFoundError:
+        logger.warning("[llm] unknown timezone %r, falling back to UTC", timezone_name)
+        now = datetime.now(ZoneInfo("UTC"))
+        timezone_name = "UTC"
+    return (
+        f"Текущая дата и время: {now:%Y-%m-%d %H:%M} ({timezone_name}). "
+        "Используй это как сегодняшнюю дату и не утверждай, что сейчас 2025 год."
+    )
 
 # ---------------------------------------------------------------------------
 # Client singleton (None when LLM is disabled)
@@ -28,6 +84,8 @@ _llm_client: AsyncOpenAI | None = (
     AsyncOpenAI(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
+        timeout=settings.llm_request_timeout_seconds,
+        max_retries=0,
     )
     if settings.llm_enabled
     else None
@@ -114,31 +172,90 @@ async def ask_llm(
             {"type": "image_url", "image_url": {"url": image_data_url}},
         ]
 
+    system_prompt = f"{settings.llm_system_prompt}\n\n{current_time_context()}"
+    if settings.llm_web_search_enabled:
+        system_prompt += (
+            "У тебя есть инструмент web_search. Если пользователь спрашивает о том, чего ты не знаешь, сначала обязатеьлно вызови web_search и отвечай по его результатам. Если тебя спрашивают то, чего ты не знаешь, или просят найти что то актуальное, или что то в интернете, обязательно используй web_search. "
+        )
+
     messages = [
-        {"role": "system", "content": settings.llm_system_prompt},
+        {"role": "system", "content": system_prompt},
         *history,
         {"role": "user", "content": user_message_content},
     ]
 
     await asyncio.sleep(settings.llm_cooldown_seconds)
 
-    response = await _llm_client.chat.completions.create(
-        model=settings.llm_model,
-        messages=messages,
-        temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
-    )
+    tools = [_WEB_SEARCH_TOOL] if settings.llm_web_search_enabled else None
+    logger.info("[llm] web_search_tool=%s model=%s chat_id=%s", bool(tools), settings.llm_model, chat_id)
+    response = None
+    for step in range(MAX_AGENT_STEPS):
+        try:
+            response = await _llm_client.chat.completions.create(
+                model=settings.llm_model,
+                messages=messages,
+                temperature=settings.llm_temperature,
+                max_tokens=settings.llm_max_tokens,
+                tools=tools,
+                tool_choice="auto" if tools else None,
+            )
+        except Exception as exc:
+            if tools and step == 0:
+                logger.warning("[llm] request with tools failed, retrying without tools: %s", exc)
+                tools = None
+                continue
+            raise
 
-    if not response.choices:
-        logger.warning("[llm] empty choices from model, chat_id=%s", chat_id)
+        if not response.choices:
+            logger.warning("[llm] empty choices from model, chat_id=%s", chat_id)
+            return "..."
+
+        choice = response.choices[0]
+        logger.info(
+            "[llm] finish_reason=%r step=%d chat_id=%s",
+            choice.finish_reason,
+            step + 1,
+            chat_id,
+        )
+        tool_calls = list(choice.message.tool_calls or []) if choice.message else []
+        if not tool_calls:
+            break
+
+        messages.append(
+            {
+                "role": "assistant",
+                "content": choice.message.content or "",
+                "tool_calls": [call.model_dump(exclude_none=True) for call in tool_calls],
+            }
+        )
+        for call in tool_calls:
+            try:
+                arguments = json.loads(call.function.arguments or "{}")
+                query = str(arguments.get("query", "")).strip()
+                results = await search_web(query, settings.llm_web_search_max_results)
+                tool_content = format_search_context(results)
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                logger.warning("[llm] invalid web_search arguments: %s", exc)
+                tool_content = "Не удалось разобрать запрос поиска. Попробуй сформулировать его иначе."
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "name": "web_search",
+                    "content": tool_content,
+                }
+            )
+    else:
+        logger.warning("[llm] agent step limit reached, chat_id=%s", chat_id)
+
+    if response is None or not response.choices:
         return "..."
 
     choice = response.choices[0]
-    logger.info("[llm] finish_reason=%r chat_id=%s", choice.finish_reason, chat_id)
-
     text = (choice.message.content or "") if choice.message else ""
-    text = cleanup_llm_text(text)
-    text = fix_truncated_kaomoji(text)
+    text = strip_protocol_markers(text)
+    text = strip_model_control_tokens(text)
+    text = repair_truncated_kaomoji(text)
 
     state.append_history(chat_id, "user", user_content, max_messages=settings.max_history_messages)
     state.append_history(chat_id, "assistant", text or "...", max_messages=settings.max_history_messages)
