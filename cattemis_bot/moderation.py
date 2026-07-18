@@ -30,12 +30,18 @@ GROUP_CHAT_TYPES: frozenset[str] = frozenset({"group", "supergroup"})
 # These domains + any direct media file extension are allowed in groups
 from .downloaders.tiktok import TIKTOK_DOMAINS
 from .downloaders.instagram import INSTAGRAM_DOMAINS
+from .downloaders.reddit import REDDIT_DOMAINS
 from .downloaders.twitter import TWITTER_DOMAINS
 from .downloaders.ytdlp import YOUTUBE_DOMAINS, VIMEO_DOMAINS
 from .utils.media import MEDIA_EXTS
 
 _ALLOWED_MEDIA_HOSTS: frozenset[str] = (
-    TIKTOK_DOMAINS | INSTAGRAM_DOMAINS | TWITTER_DOMAINS | YOUTUBE_DOMAINS | VIMEO_DOMAINS
+    TIKTOK_DOMAINS
+    | INSTAGRAM_DOMAINS
+    | TWITTER_DOMAINS
+    | YOUTUBE_DOMAINS
+    | VIMEO_DOMAINS
+    | REDDIT_DOMAINS
 )
 
 

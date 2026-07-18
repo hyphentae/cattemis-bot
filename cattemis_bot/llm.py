@@ -13,6 +13,7 @@ The ``ask_llm`` coroutine is the single public interface.
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -21,7 +22,7 @@ from openai import AsyncOpenAI
 
 from .config import settings
 from .state import state
-from .utils.text import cleanup_llm_text
+from .utils.text import repair_truncated_kaomoji, strip_protocol_markers
 from .web_search import format_search_context, search_web
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,15 @@ _WEB_SEARCH_TOOL: dict[str, Any] = {
 MAX_AGENT_STEPS = 3
 
 
+def strip_model_control_tokens(text: str) -> str:
+    """Remove leaked chat-template control markers while preserving content."""
+    text = re.sub(r"<\|channel\|>\s*", "", text)
+    text = re.sub(r"<channel\|>\s*", "", text)
+    text = re.sub(r"<\|(?:im_start|im_end|end|eot|assistant|user|system)\|>", "", text)
+    text = re.sub(r"</?(?:analysis|think)>\s*", "", text, flags=re.IGNORECASE)
+    return text
+
+
 def current_time_context() -> str:
     """Return the current local date/time for the model's system context."""
     timezone_name = settings.llm_timezone
@@ -74,6 +84,8 @@ _llm_client: AsyncOpenAI | None = (
     AsyncOpenAI(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
+        timeout=settings.llm_request_timeout_seconds,
+        max_retries=0,
     )
     if settings.llm_enabled
     else None
@@ -189,7 +201,7 @@ async def ask_llm(
             )
         except Exception as exc:
             if tools and step == 0:
-                logger.warning("[llm] tool calling unavailable, retrying without tools: %s", exc)
+                logger.warning("[llm] request with tools failed, retrying without tools: %s", exc)
                 tools = None
                 continue
             raise
@@ -241,7 +253,9 @@ async def ask_llm(
 
     choice = response.choices[0]
     text = (choice.message.content or "") if choice.message else ""
-    text = cleanup_llm_text(text)
+    text = strip_protocol_markers(text)
+    text = strip_model_control_tokens(text)
+    text = repair_truncated_kaomoji(text)
 
     state.append_history(chat_id, "user", user_content, max_messages=settings.max_history_messages)
     state.append_history(chat_id, "assistant", text or "...", max_messages=settings.max_history_messages)

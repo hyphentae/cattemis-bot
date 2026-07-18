@@ -20,6 +20,7 @@ from ..config import settings
 from ..downloaders import with_retry
 from ..downloaders.direct import download_direct_image, is_direct_image
 from ..downloaders.instagram import download_instagram_apify, is_instagram
+from ..downloaders.reddit import RedditNoImagesError, download_reddit_images, is_reddit
 from ..downloaders.tiktok import download_tiktok, is_tiktok
 from ..downloaders.twitter import download_twitter_fx, is_twitter
 from ..downloaders.ytdlp import download_ytdlp, human_ytdlp_error, is_youtube
@@ -43,22 +44,6 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 router = Router(name="media")
-
-REDDIT_DOMAINS: frozenset[str] = frozenset(
-    {"reddit.com", "www.reddit.com", "old.reddit.com", "m.reddit.com", "redd.it"}
-)
-
-
-def is_reddit(url: str) -> bool:
-    """Return True if *url* belongs to Reddit."""
-    from urllib.parse import urlparse
-
-    try:
-        host = urlparse(url).netloc.lower()
-    except Exception:
-        return False
-    return any(host == d or host.endswith("." + d) for d in REDDIT_DOMAINS)
-
 
 # ---------------------------------------------------------------------------
 # Bot mention helpers
@@ -145,8 +130,14 @@ async def process_media_url(
             result = await with_retry(download_direct_image, url)
             state.inc("media_total")
             state.inc("direct_image_downloads")
-        elif is_youtube(url) or is_reddit(url):
+        elif is_youtube(url):
             result = await _download_youtube_or_reddit(url)
+            state.inc("media_total")
+        elif is_reddit(url):
+            try:
+                result = await with_retry(download_reddit_images, url)
+            except RedditNoImagesError:
+                result = await _download_youtube_or_reddit(url)
             state.inc("media_total")
         else:
             result = await with_retry(download_ytdlp, url)

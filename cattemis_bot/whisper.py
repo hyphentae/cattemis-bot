@@ -93,9 +93,7 @@ async def transcribe_audio_with_whisper(audio_bytes: bytes, suffix: str = ".ogg"
         segments, _info = await asyncio.to_thread(
             model.transcribe, str(temp_path), language="ru", vad_filter=True
         )
-        from .utils.text import cleanup_llm_text
-
-        return cleanup_llm_text(" ".join(s.text.strip() for s in segments if s.text.strip()))
+        return " ".join(s.text.strip() for s in segments if s.text.strip())
     except Exception as exc:  # pragma: no cover
         logger.error("[whisper] transcription error: %s", exc)
         return ""

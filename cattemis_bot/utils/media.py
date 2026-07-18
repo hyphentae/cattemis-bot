@@ -26,9 +26,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 IMAGE_EXTS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", ".webp", ".bmp"})
+ANIMATION_EXTS: frozenset[str] = frozenset({".gif"})
 VIDEO_EXTS: frozenset[str] = frozenset({".mp4", ".mov", ".mkv", ".webm", ".m4v"})
 AUDIO_EXTS: frozenset[str] = frozenset({".mp3", ".m4a", ".opus", ".ogg", ".wav", ".flac"})
-MEDIA_EXTS: frozenset[str] = IMAGE_EXTS | VIDEO_EXTS | AUDIO_EXTS
+MEDIA_EXTS: frozenset[str] = IMAGE_EXTS | ANIMATION_EXTS | VIDEO_EXTS | AUDIO_EXTS
 
 MEDIA_CONTENT_TYPES: dict[str, str] = {
     "image/jpeg": ".jpg",
@@ -36,6 +37,7 @@ MEDIA_CONTENT_TYPES: dict[str, str] = {
     "image/png": ".png",
     "image/webp": ".webp",
     "image/bmp": ".bmp",
+    "image/gif": ".gif",
     "video/mp4": ".mp4",
     "video/quicktime": ".mov",
     "video/webm": ".webm",
@@ -130,6 +132,8 @@ async def _send_single(
 
     if ext in IMAGE_EXTS:
         await tg_call(message.answer_photo, FSInputFile(path), **kwargs)
+    elif ext in ANIMATION_EXTS:
+        await tg_call(message.answer_animation, FSInputFile(path), **kwargs)
     elif ext in VIDEO_EXTS:
         await tg_call(
             message.answer_video,
@@ -178,7 +182,9 @@ async def _send_album(
         if reply_params:
             leftover_kwargs["reply_parameters"] = reply_params
 
-        if ext in AUDIO_EXTS:
+        if ext in ANIMATION_EXTS:
+            await tg_call(message.answer_animation, FSInputFile(path), **leftover_kwargs)
+        elif ext in AUDIO_EXTS:
             await tg_call(message.answer_audio, FSInputFile(path), **leftover_kwargs)
         else:
             await tg_call(message.answer_document, FSInputFile(path), **leftover_kwargs)
