@@ -28,54 +28,57 @@
   </svg>
 
   <section class="screen active" id="screen-menu">
-    <main class="panel menu-panel">
-      <div class="section-heading">
-        <h2 class="section-label">хозяин, во что поиграем? :3</h2>
-        <span class="section-count">8 доступно</span>
-      </div>
+    <main class="arcade-shell">
+      <header class="arcade-header">
+        <a class="brand" href="#game-menu" aria-label="Cattemis — игровая">
+          <span class="brand-mark" aria-hidden="true">◕</span>
+          <span>cattemis<span>play</span></span>
+        </a>
+        <span class="online-status"><i></i> онлайн</span>
+      </header>
 
-      <div class="games">
-        <button class="card ttt" id="open-ttt" type="button">
-          <span class="card-icon"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><use href="#icon-x"/></svg></span>
-          <span class="card-info"><strong>крестики нолики</strong><small>owo</small></span>
-          <span class="card-arrow">→</span>
-        </button>
-        <button class="card mines" id="open-minesweeper" type="button">
-          <span class="card-icon"><i class="menu-mine" aria-hidden="true"></i></span>
-          <span class="card-info"><strong>сапёр</strong><small>мне страшна хозяин</small></span>
-          <span class="card-arrow">→</span>
-        </button>
-        <button class="card sdk" id="open-sudoku" type="button">
-          <span class="card-icon"><i class="menu-sudoku" aria-hidden="true"></i></span>
-          <span class="card-info"><strong>судоку</strong><small>посчитаем на лапках, хозяин :3</small></span>
-          <span class="card-arrow">→</span>
-        </button>
-        <button class="card pixel" id="open-pixel-canvas" type="button">
-          <span class="card-icon"><i class="menu-pixels" aria-hidden="true"></i></span>
-          <span class="card-info"><strong>общий холст</strong><small>порисуй, хозяин :3</small></span>
-          <span class="card-arrow">→</span>
+      <section class="arcade-hero" aria-labelledby="arcade-title">
+        <p class="eyebrow">игровая котемиса</p>
+        <h1 id="arcade-title">Выбирай игру.<br><em>Я уже готов.</em></h1>
+        <p>Сыграй против котемиса, позови друга или оставь свой след на общем холсте.</p>
+        <div class="hero-decoration" aria-hidden="true"><span>✦</span><strong>↗</strong><b>●</b></div>
+      </section>
+
+      <div class="games-heading">
+        <h2>Игры</h2>
+        <span>7 доступно</span>
+      </div>
+      <div class="games arcade-games">
+        <button class="card ttt featured-game" id="open-ttt" type="button">
+          <span class="game-number">01</span><span class="game-glyph">×○</span>
+          <span class="card-info"><strong>Крестики-нолики</strong><small>быстрая партия</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card ches" id="open-chess" type="button">
-          <span class="card-icon">♞</span>
-          <span class="card-info"><strong>шахматы</strong><small>хозяин против меня :3</small></span>
-          <span class="card-arrow">→</span>
-        </button>
-        <button class="card para" id="open-parabolic-chess" type="button">
-          <span class="card-icon">♛</span>
-          <span class="card-info"><strong>parabolic chess</strong><small>от MellowYellow7777, owo</small></span>
-          <span class="card-arrow" aria-hidden="true">→</span>
-        </button>
-        <button class="card deltarune" id="open-deltarune" type="button">
-          <span class="card-icon"><img src="https://orchard.vinetrap.net/app/assets/pwa.png" alt="" loading="lazy" referrerpolicy="no-referrer"></span>
-          <span class="card-info"><strong>дельтарун</strong><small>Project Vinetrap</small></span>
-          <span class="card-arrow" aria-hidden="true">→</span>
+          <span class="game-number">02</span><span class="game-glyph">♞</span>
+          <span class="card-info"><strong>Шахматы</strong><small>бот или друг</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card chk" id="open-checkers" type="button">
-          <span class="card-icon"><i class="menu-checker" aria-hidden="true"></i></span>
-          <span class="card-info"><strong>шашки</strong><small>со мной или с другом, мяу</small></span>
-          <span class="card-arrow">→</span>
+          <span class="game-number">03</span><span class="game-glyph">●</span>
+          <span class="card-info"><strong>Шашки</strong><small>онлайн-партия</small></span><span class="card-arrow">↗</span>
+        </button>
+        <button class="card mines" id="open-minesweeper" type="button">
+          <span class="game-number">04</span><span class="game-glyph">✹</span>
+          <span class="card-info"><strong>Сапёр</strong><small>не наступи</small></span><span class="card-arrow">↗</span>
+        </button>
+        <button class="card sdk" id="open-sudoku" type="button">
+          <span class="game-number">05</span><span class="game-glyph">#</span>
+          <span class="card-info"><strong>Судоку</strong><small>разминка для мозга</small></span><span class="card-arrow">↗</span>
+        </button>
+        <button class="card pixel" id="open-pixel-canvas" type="button">
+          <span class="game-number">06</span><span class="game-glyph">▦</span>
+          <span class="card-info"><strong>Общий холст</strong><small>рисуем вместе</small></span><span class="card-arrow">↗</span>
+        </button>
+        <button class="card para" id="open-parabolic-chess" type="button">
+          <span class="game-number">07</span><span class="game-glyph">♛</span>
+          <span class="card-info"><strong>Parabolic chess</strong><small>для любопытных</small></span><span class="card-arrow">↗</span>
         </button>
       </div>
+      <footer class="arcade-footer">Сделано с любопытством · Cattemis</footer>
     </main>
   </section>
 
@@ -263,26 +266,6 @@
         src="about:blank"
         data-src="/parabolic/"
         allow="fullscreen"
-      ></iframe>
-    </main>
-  </section>
-
-  <section class="screen deltarune-game-screen" id="screen-deltarune">
-    <main class="deltarune-shell">
-      <header class="deltarune-topbar">
-        <button class="back-btn" id="leave-deltarune" type="button" aria-label="Вернуться в меню">←</button>
-        <div class="game-title">
-          <strong>DELTARUNE</strong>
-          <span>Project Vinetrap</span>
-        </div>
-      </header>
-      <iframe
-        id="deltarune-frame"
-        title="DELTARUNE — Project Vinetrap"
-        src="about:blank"
-        data-src="https://orchard.vinetrap.net/"
-        allow="autoplay; fullscreen; gamepad"
-        allowfullscreen
       ></iframe>
     </main>
   </section>

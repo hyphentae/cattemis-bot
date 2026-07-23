@@ -41,16 +41,6 @@ document.getElementById('leave-parabolic').addEventListener('click', () => {
   showScreen('menu');
 });
 
-document.getElementById('open-deltarune').addEventListener('click', () => {
-  const frame = document.getElementById('deltarune-frame') as HTMLIFrameElement;
-  if (frame.getAttribute('src') === 'about:blank') frame.src = frame.dataset.src;
-  showScreen('deltarune');
-});
-
-document.getElementById('leave-deltarune').addEventListener('click', () => {
-  (document.getElementById('deltarune-frame') as HTMLIFrameElement).src = 'about:blank';
-  showScreen('menu');
-});
 initializeTelegram();
 initTicTacToe({ telegram, showScreen });
 initCheckers({ telegram, showScreen });
@@ -65,7 +55,6 @@ const gameLaunchButtons = {
   checkers: 'open-checkers',
   sudoku: 'open-sudoku',
   parabolic_chess: 'open-parabolic-chess',
-  deltarune: 'open-deltarune',
   chess: 'open-chess',
   minesweeper: 'open-minesweeper',
 };
