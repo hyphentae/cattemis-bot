@@ -1,3 +1,5 @@
+import { loadLeaderboard, submitLeaderboardScore } from './leaderboard.ts';
+
 const DIFFICULTIES = {
   easy: { rows: 9, cols: 9, mines: 10, cellSize: 32 },
   medium: { rows: 16, cols: 16, mines: 40, cellSize: 25 },
@@ -17,6 +19,7 @@ export function initMinesweeper({ telegram, showScreen }) {
     time: document.getElementById('mines-time'),
     mode: document.getElementById('mines-mode'),
     status: document.getElementById('mines-status'),
+    leaderboard: document.getElementById('mines-leaderboard'),
   };
 
   let difficulty = 'easy';
@@ -75,6 +78,7 @@ export function initMinesweeper({ telegram, showScreen }) {
     setStatus('разминируй :3c');
     updateDifficultyButtons();
     render();
+    void refreshLeaderboard();
   }
 
   function placeMines(safeIndex) {
@@ -200,6 +204,22 @@ export function initMinesweeper({ telegram, showScreen }) {
     setStatus(`поле очищено за ${elapsed} сек., хозяин :3`, 'win');
     telegram?.HapticFeedback?.notificationOccurred('success');
     updateCounter();
+    void submitLeaderboardScore({
+      telegram,
+      game: 'minesweeper',
+      difficulty,
+      seconds: Math.max(1, elapsed),
+      element: elements.leaderboard,
+    });
+  }
+
+  function refreshLeaderboard() {
+    return loadLeaderboard({
+      telegram,
+      game: 'minesweeper',
+      difficulty,
+      element: elements.leaderboard,
+    });
   }
 
   function render() {

@@ -30,6 +30,7 @@ func main() {
 	mux.HandleFunc("/health", server.health)
 	mux.HandleFunc("/api/canvas/state", server.canvasState)
 	mux.HandleFunc("/api/canvas/place", server.placeCanvasPixel)
+	mux.HandleFunc("/api/leaderboard", server.leaderboard)
 	mux.HandleFunc("/api/tictactoe/create", server.createTTTRoom)
 	mux.HandleFunc("/api/tictactoe/public", server.publicTTTRoom)
 	mux.HandleFunc("/api/tictactoe/join", server.joinTTTRoom)

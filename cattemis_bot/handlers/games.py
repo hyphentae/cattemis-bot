@@ -22,7 +22,6 @@ GAMES = (
     ("chess", "шахматы"),
     ("parabolic_chess", "parabolic chess"),
     ("checkers", "шашки"),
-    ("deltarune", "deltarune"),
 )
 GAME_SHORT_NAMES = frozenset(short_name for short_name, _ in GAMES)
 

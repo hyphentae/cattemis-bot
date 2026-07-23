@@ -26,7 +26,6 @@
 | Chess | `chess` | code-based room, public matchmaking |
 | Parabolic Chess | `parabolic_chess` | WebSocket multiplayer |
 | Checkers | `checkers` | bot, code-based room, public matchmaking |
-| Deltarune | `deltarune` | Project Vinetrap inside the Mini App |
 
 Regular chess, checkers, and tic-tac-toe rooms are stored in memory and reset when the `web` container restarts. The shared canvas is stored in the `canvas` Docker volume and persists across restarts.
 
