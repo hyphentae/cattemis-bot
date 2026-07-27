@@ -46,36 +46,40 @@
 
       <div class="games-heading">
         <h2>Игры</h2>
-        <span>7 доступно</span>
+        <span>8 доступно</span>
       </div>
       <div class="games arcade-games">
         <button class="card ttt featured-game" id="open-ttt" type="button">
           <span class="game-number">01</span><span class="game-glyph">×○</span>
-          <span class="card-info"><strong>Крестики-нолики</strong><small>быстрая партия</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.ttt.title">Крестики-нолики</strong><small data-i18n="web.menu.ttt.subtitle">быстрая партия</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card ches" id="open-chess" type="button">
           <span class="game-number">02</span><span class="game-glyph">♞</span>
-          <span class="card-info"><strong>Шахматы</strong><small>бот или друг</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.chess.title">Шахматы</strong><small data-i18n="web.menu.chess.subtitle">бот или друг</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card chk" id="open-checkers" type="button">
           <span class="game-number">03</span><span class="game-glyph">●</span>
-          <span class="card-info"><strong>Шашки</strong><small>онлайн-партия</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.checkers.title">Шашки</strong><small data-i18n="web.menu.checkers.subtitle">онлайн-партия</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card mines" id="open-minesweeper" type="button">
           <span class="game-number">04</span><span class="game-glyph">✹</span>
-          <span class="card-info"><strong>Сапёр</strong><small>не наступи</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.mines.title">Сапёр</strong><small data-i18n="web.menu.mines.subtitle">не наступи</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card sdk" id="open-sudoku" type="button">
           <span class="game-number">05</span><span class="game-glyph">#</span>
-          <span class="card-info"><strong>Судоку</strong><small>разминка для мозга</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.sudoku.title">Судоку</strong><small data-i18n="web.menu.sudoku.subtitle">разминка для мозга</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card pixel" id="open-pixel-canvas" type="button">
           <span class="game-number">06</span><span class="game-glyph">▦</span>
-          <span class="card-info"><strong>Общий холст</strong><small>рисуем вместе</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.canvas.title">Общий холст</strong><small data-i18n="web.menu.canvas.subtitle">рисуем вместе</small></span><span class="card-arrow">↗</span>
         </button>
         <button class="card para" id="open-parabolic-chess" type="button">
           <span class="game-number">07</span><span class="game-glyph">♛</span>
-          <span class="card-info"><strong>Parabolic chess</strong><small>для любопытных</small></span><span class="card-arrow">↗</span>
+          <span class="card-info"><strong data-i18n="web.menu.parabolic.title">Parabolic chess</strong><small data-i18n="web.menu.parabolic.subtitle">для любопытных</small></span><span class="card-arrow">↗</span>
+        </button>
+        <button class="card flappy" id="open-flappy" type="button">
+          <span class="game-number">08</span><span class="game-glyph">🐈</span>
+          <span class="card-info"><strong data-i18n="web.menu.flappy.title">Flappy Kat</strong><small data-i18n="web.menu.flappy.subtitle">лети между трубами</small></span><span class="card-arrow">↗</span>
         </button>
       </div>
       <footer class="arcade-footer">Сделано с любопытством · Cattemis</footer>
@@ -320,6 +324,31 @@
       <section class="leaderboard" aria-label="Таблица лидеров сапёра">
         <h3>лучшие результаты</h3>
         <div id="mines-leaderboard"></div>
+      </section>
+    </main>
+  </section>
+
+  <section class="screen" id="screen-flappy">
+    <main class="panel game-panel flappy-panel">
+      <header class="game-topbar">
+        <button class="back-btn" id="leave-flappy" type="button" aria-label="Вернуться в меню">←</button>
+        <div class="game-title"><strong>Flappy Kat</strong><span>тапай, чтобы лететь</span></div>
+      </header>
+      <div class="flappy-meta">
+        <span>счёт <strong id="flappy-score">0</strong></span>
+        <span>лучший <strong id="flappy-best">0</strong></span>
+      </div>
+      <div class="flappy-stage">
+        <canvas id="flappy-canvas" aria-label="Игровое поле Flappy Kat"></canvas>
+        <button class="flappy-overlay" id="flappy-overlay" type="button">
+          <strong>Нажми, чтобы начать</strong>
+          <span>тапай по полю и пролети между трубами</span>
+        </button>
+      </div>
+      <button class="restart-btn" id="restart-flappy" type="button">новая попытка</button>
+      <section class="leaderboard" aria-label="Таблица лидеров Flappy Kat">
+        <h3>лучшие результаты</h3>
+        <div id="flappy-leaderboard"></div>
       </section>
     </main>
   </section>

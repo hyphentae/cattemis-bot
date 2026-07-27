@@ -34,6 +34,7 @@ export function initMinesweeper({ telegram, showScreen }) {
   let suppressedLongPressIndex = -1;
   let suppressLongPressUntil = 0;
   const longPressed = new WeakSet();
+  let audioContext = null;
 
   elements.open.addEventListener('click', () => {
     newGame();
@@ -157,6 +158,7 @@ export function initMinesweeper({ telegram, showScreen }) {
       return;
     }
     cell.flagged = !cell.flagged;
+    playFlagSound(cell.flagged);
     if (hapticStyle === 'flag') {
       if (cell.flagged) telegram?.HapticFeedback?.impactOccurred('heavy');
       else telegram?.HapticFeedback?.impactOccurred('medium');
@@ -165,6 +167,24 @@ export function initMinesweeper({ telegram, showScreen }) {
     }
     updateCounter();
     render();
+  }
+
+  function playFlagSound(placed) {
+    try {
+      audioContext ??= new AudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(placed ? 720 : 480, audioContext.currentTime);
+      gain.gain.setValueAtTime(0.035, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.055);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.06);
+    } catch {
+      // Some WebViews keep audio disabled; haptics remain available.
+    }
   }
 
   function handleCell(button, index) {

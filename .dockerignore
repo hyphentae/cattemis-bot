@@ -1,0 +1,6 @@
+.git
+.env
+*.zip
+node_modules
+web/client/dist
+web/parabolic/node_modules

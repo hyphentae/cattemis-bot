@@ -19,6 +19,7 @@ type leaderboardEntry struct {
 	Name      string `json:"name"`
 	Seconds   int    `json:"seconds"`
 	Mistakes  int    `json:"mistakes,omitempty"`
+	Score     int    `json:"score,omitempty"`
 	CreatedAt int64  `json:"created_at"`
 }
 
@@ -41,6 +42,9 @@ func newLeaderboardManager(path string) *leaderboardManager {
 }
 
 func leaderboardKey(game, difficulty string) (string, error) {
+	if game == "flappy" && difficulty == "normal" {
+		return game + ":" + difficulty, nil
+	}
 	if game != "minesweeper" && game != "sudoku" {
 		return "", errInvalidLeaderboardScore
 	}
@@ -60,9 +64,16 @@ func (m *leaderboardManager) view(game, difficulty string) (leaderboardView, err
 	return leaderboardView{Game: game, Difficulty: difficulty, Entries: publicLeaderboardEntries(m.entries[key])}, nil
 }
 
-func (m *leaderboardManager) submit(user telegramUser, game, difficulty string, seconds, mistakes int) (leaderboardView, error) {
+func (m *leaderboardManager) submit(user telegramUser, game, difficulty string, seconds, mistakes, score int) (leaderboardView, error) {
 	key, err := leaderboardKey(game, difficulty)
-	if err != nil || seconds < 1 || seconds > 86400 || mistakes < 0 || mistakes > 999 {
+	if err != nil || mistakes < 0 || mistakes > 999 || score < 0 || score > 1000000 {
+		return leaderboardView{}, errInvalidLeaderboardScore
+	}
+	if game == "flappy" {
+		if score < 1 || seconds != 0 || mistakes != 0 {
+			return leaderboardView{}, errInvalidLeaderboardScore
+		}
+	} else if seconds < 1 || seconds > 86400 || score != 0 {
 		return leaderboardView{}, errInvalidLeaderboardScore
 	}
 	if game == "minesweeper" && mistakes != 0 {
@@ -72,7 +83,7 @@ func (m *leaderboardManager) submit(user telegramUser, game, difficulty string, 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	entries := m.entries[key]
-	candidate := leaderboardEntry{UserID: user.ID, Name: user.displayName(), Seconds: seconds, Mistakes: mistakes, CreatedAt: time.Now().Unix()}
+	candidate := leaderboardEntry{UserID: user.ID, Name: user.displayName(), Seconds: seconds, Mistakes: mistakes, Score: score, CreatedAt: time.Now().Unix()}
 	replaced := false
 	for index, entry := range entries {
 		if entry.UserID != user.ID {
@@ -107,6 +118,12 @@ func publicLeaderboardEntries(entries []leaderboardEntry) []leaderboardEntry {
 }
 
 func betterScore(left, right leaderboardEntry) bool {
+	if left.Score != 0 || right.Score != 0 {
+		if left.Score != right.Score {
+			return left.Score > right.Score
+		}
+		return left.CreatedAt < right.CreatedAt
+	}
 	if left.Seconds != right.Seconds {
 		return left.Seconds < right.Seconds
 	}

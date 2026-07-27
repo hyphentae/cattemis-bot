@@ -1,217 +1,147 @@
-# cattemis-bot
+# cattemis-bot — Go edition
 
-**English** | [Русский](README.ru.md)
+Полная Go-версия Telegram-бота `cattemis-bot`, объединяющая возможности актуального
+Python-репозитория и приложенного Rust-проекта. Сам бот и Mini App API написаны на Go.
+TypeScript используется только для интерфейса Mini App, а Node.js — для отдельного
+режима Parabolic Chess.
 
-`cattemis-bot` is a Telegram bot for downloading media, optional LLM chat, and a game-filled Mini App. The project runs with Docker Compose: the bot waits for a healthy Cloudflare Tunnel, reads its current URL, and automatically assigns the Mini App to the Telegram menu button.
+## Что умеет бот
 
-## Features
+- скачивает фото, видео и карусели из TikTok, Instagram, X/Twitter, YouTube и Reddit;
+- прикладывает подпись/описание исходной публикации ко всем поддерживаемым платформам;
+- поддерживает прямые ссылки на изображения и видео;
+- отправляет карусели альбомами по 10 файлов и проверяет лимиты Telegram;
+- общается через любой OpenAI-совместимый API, включая OpenRouter;
+- передаёт LLM фотографии, несколько кадров видео и расшифровку аудио/видео;
+- подхватывает весь альбом, если пользователь отвечает на один из ранее отправленных ботом файлов;
+- предоставляет LLM инструменты `current_time` и необязательный `web_search`;
+- удаляет неподдерживаемые ссылки не-администраторов в группах;
+- хранит дополнительные разрешённые домены после `/allowlink example.com`;
+- принимает поддержку через Telegram Stars и необязательную кнопку Ko-fi;
+- ведёт статистику процесса и отдельную историю LLM для каждого чата;
+- автоматически обновляет кнопку Mini App при смене адреса Cloudflare Quick Tunnel.
 
-- downloads media from TikTok, Instagram, X/Twitter, YouTube, and Reddit;
-- sends photos and videos to Telegram with file-size validation;
-- optional LLM chat through an OpenAI-compatible API;
-- optional LLM agent mode with a model-selected web-search tool;
-- optional voice and audio transcription with Whisper;
-- link moderation and an admin-only command for posting as the bot;
-- Mini App launch from the menu button, `/games`, or inline mode;
-- a Catppuccin Mocha interface designed for Telegram WebView.
+## Игры
 
-## Games
+Mini App сохраняет все игры исходного репозитория и добавляет Flappy Kat из Rust-версии:
 
-| Game | BotFather short name | Modes |
-|---|---|---|
-| Tic-tac-toe | `tictactoe` | bot, code-based room, public matchmaking |
-| Minesweeper | `minesweeper` | easy, medium, hard |
-| Sudoku | `sudoku` | single-player |
-| Shared canvas | `canvas` | shared 1000×1000 canvas, one pixel every 10 seconds |
-| Chess | `chess` | code-based room, public matchmaking |
-| Parabolic Chess | `parabolic_chess` | WebSocket multiplayer |
-| Checkers | `checkers` | bot, code-based room, public matchmaking |
+| Игра | Режимы |
+|---|---|
+| Крестики-нолики | бот, приватная комната, публичный поиск |
+| Шашки | бот, приватная комната, публичный поиск |
+| Шахматы | бот, приватная комната, публичный поиск |
+| Сапёр | 3 сложности, секундомер, звук/вибрация флажка, рекорды |
+| Судоку | 3 сложности, секундомер, ошибки, рекорды |
+| Flappy Kat | локальный рекорд и общая таблица лидеров |
+| Общий холст | 1000×1000, общий постоянный прогресс |
+| Parabolic Chess | сетевой режим через WebSocket |
 
-Regular chess, checkers, and tic-tac-toe rooms are stored in memory and reset when the `web` container restarts. The shared canvas is stored in the `canvas` Docker volume and persists across restarts.
+Команды `/ttt` и `/checkers` также запускают игры прямо на inline-кнопках Telegram.
+Чтобы вызвать другого пользователя, ответь командой на его сообщение или используй
+`text_mention`.
 
-## Technology
+## Быстрый запуск
 
-- Python 3.14, aiogram, and pydantic-settings — Telegram bot;
-- Go 1.26 — Mini App server, rooms, chess, checkers, and canvas APIs;
-- TypeScript 5 and Vite — Mini App frontend;
-- Node.js 24 LTS, JavaScript, Express, and WebSocket — Parabolic Chess;
-- Docker Compose and Cloudflare Quick Tunnel — service orchestration and HTTPS access from Telegram.
+1. Скопируй пример конфигурации и укажи токен:
 
-## Quick start
-
-You need Docker with the Compose Plugin and a Telegram bot created through [@BotFather](https://t.me/BotFather).
-
-1. Create a `.env` file in the project root:
-
-   ```dotenv
-   BOT_TOKEN=123456789:telegram_bot_token
-
-   # Optional: Instagram through Apify
-   APIFY_TOKEN=
-   APIFY_INSTAGRAM_ACTOR=elis~instagram-downloader-api
-
-   # Optional: LLM
-   LLM_ENABLED=false
-   LLM_BASE_URL=http://host.docker.internal:11434/v1
-   LLM_API_KEY=dummy
-   LLM_MODEL=gemma-4-26b-a4b-it
-   LLM_REQUEST_TIMEOUT_SECONDS=120
-   LLM_WEB_SEARCH_ENABLED=false
-   LLM_WEB_SEARCH_MAX_RESULTS=5
-   LLM_TIMEZONE=Asia/Almaty
-
-   # Optional: Whisper
-   WHISPER_ENABLED=false
-   WHISPER_MODEL_SIZE=base
-   WHISPER_DEVICE=cpu
-   WHISPER_COMPUTE_TYPE=int8
+   ```bash
+   cp .env.example .env
    ```
 
-2. Build and start the services:
+2. Запусти все сервисы:
 
    ```bash
    docker compose up -d --build
-   ```
-
-3. Check service status and logs:
-
-   ```bash
-   docker compose ps
    docker compose logs -f bot cloudflared web parabolic
    ```
 
-After startup, `cloudflared` writes the current `trycloudflare.com` URL to a shared volume. The `bot` container starts only after the tunnel health check succeeds, then assigns that URL to the Telegram menu button.
+По умолчанию собирается образ `runtime` с локальным Whisper. Если расшифровка не нужна,
+укажи `DOCKER_TARGET=runtime-lite` и `WHISPER_ENABLED=false` — образ будет заметно меньше.
 
-Restart an individual service:
+## LLM и медиа
 
-```bash
-docker compose restart bot
-docker compose restart web
+Для OpenRouter:
+
+```dotenv
+LLM_ENABLED=true
+LLM_BASE_URL=https://openrouter.ai/api/v1
+LLM_API_KEY=...
+LLM_MODEL=...
+LLM_WEB_SEARCH_ENABLED=true
+LLM_VISION_ENABLED=true
+WHISPER_ENABLED=true
 ```
 
-Rebuild a service after changing source files included in its image:
+В личном чате бот отвечает на обычный текст и медиа. В группе сообщение должно одновременно:
 
-```bash
-docker compose up -d --build web
-```
+1. содержать слово `мяу`;
+2. быть ответом на сообщение бота или содержать `@username` бота.
 
-## Telegram HTML5 Games setup
+`LLM_VIDEO_FRAME_COUNT` задаёт количество равномерно выбранных кадров (1–6).
+`LLM_TIMEZONE` принимает IANA-имя (`Asia/Almaty`) или смещение (`+05:00`).
 
-In [@BotFather](https://t.me/BotFather):
+## Команды
 
-1. enable inline mode with `/setinline`;
-2. create eight games with `/newgame`, using the exact short names from the table above;
-3. make sure the games belong to the same bot whose `BOT_TOKEN` is stored in `.env`.
-
-Short names must match exactly. If even one name is invalid, Telegram may reject the entire inline result list with `GAME_INVALID`.
-
-Games can be published in any chat:
-
-```text
-@cattemis_bot
-@cattemis_bot chess
-```
-
-Or opened through a direct link:
-
-```text
-https://t.me/cattemis_bot?game=chess
-```
-
-The callback handler builds a current launch URL containing a signed Telegram user identity. The signing secret is `BOT_TOKEN`; it is passed to the `bot` and `web` containers but is never included in the URL.
-
-## Bot commands
-
-| Command | Description |
+| Команда | Назначение |
 |---|---|
-| `/help` | show help |
-| `/donate` | support the bot with Telegram Stars or Ko-fi |
-| `/paysupport` | payment support information |
-| `/ping` | check whether the bot is available |
-| `/games` | open the registered HTML5 game picker |
-| `/ttt` | play tic-tac-toe in Telegram messages |
-| `/checkers` | play checkers in Telegram messages |
-| `/stats` | show statistics for the current process |
-| `/reset` | clear LLM history for the current chat |
+| `/help` | справка |
+| `/app` | открыть Mini App |
+| `/games` | выбрать Telegram HTML5 Game |
+| `/ttt` | крестики-нолики в сообщении |
+| `/checkers` | шашки в сообщении |
+| `/donate` | Telegram Stars / Ko-fi |
+| `/paysupport` | помощь с платежом |
+| `/ping` | проверка доступности |
+| `/stats` | статистика процесса |
+| `/reset` | очистить историю LLM текущего чата |
+| `/allowlink example.com` | разрешить домен (администратор/личный чат) |
 
-## Environment variables
+## Telegram HTML5 Games
 
-| Variable | Default | Description |
-|---|---:|---|
-| `BOT_TOKEN` | — | required Telegram Bot API token |
-| `APIFY_TOKEN` | empty | Apify token for Instagram |
-| `APIFY_INSTAGRAM_ACTOR` | `elis~instagram-downloader-api` | Instagram actor |
-| `KOFI_URL` | empty | Ko-fi page shown by `/donate` |
-| `LLM_ENABLED` | `false` | enable LLM responses |
-| `LLM_BASE_URL` | `http://localhost:11434/v1` | OpenAI-compatible endpoint |
-| `LLM_API_KEY` | `dummy` | LLM endpoint API key |
-| `LLM_MODEL` | `gemma4:e4b` | model name |
-| `LLM_SYSTEM_PROMPT` | built in | system prompt |
-| `LLM_COOLDOWN_SECONDS` | `5.0` | delay before an LLM request |
-| `LLM_REQUEST_TIMEOUT_SECONDS` | `120.0` | maximum wait time for an LLM response |
-| `LLM_MAX_TOKENS` | `480` | maximum LLM response length |
-| `LLM_TEMPERATURE` | `0.6` | generation temperature |
-| `LLM_WEB_SEARCH_ENABLED` | `false` | give the LLM a web-search tool that it may call when needed |
-| `LLM_WEB_SEARCH_MAX_RESULTS` | `5` | maximum results per search |
-| `LLM_TIMEZONE` | `Asia/Almaty` | timezone used for the current date and time in the LLM context |
-| `WHISPER_ENABLED` | `false` | enable transcription |
-| `WHISPER_MODEL_SIZE` | `base` | Whisper model size |
-| `WHISPER_DEVICE` | `cpu` | Whisper device |
-| `WHISPER_COMPUTE_TYPE` | `int8` | Whisper compute type |
-| `MAX_MEDIA_ITEMS` | `50` | files per download; sent in albums of up to 10 |
-| `MAX_FILE_SIZE` | `52428800` | maximum file size in bytes |
-| `RETRY_ATTEMPTS` | `2` | number of download retries |
-| `RETRY_DELAY` | `1.2` | delay between retries |
-| `ADMIN_CACHE_TTL` | `60` | administrator list cache TTL |
-| `MAX_HISTORY_MESSAGES` | `8` | messages retained in LLM history |
-| `WEB_ENABLED` | `true` | web application flag |
-| `WEB_PORT` | `8080` | web application port |
-| `USE_CLOUDFLARE` | `true` | wait for Cloudflare Tunnel and assign the menu button |
-
-`.env` is excluded from Git. Never publish the bot token or API keys.
-
-## Architecture
+В `@BotFather` включи inline mode и создай игры с short name:
 
 ```text
-Telegram
-   │
-   ├── Bot API ───────────────► bot (Python / aiogram)
-   │                                │
-   │                                └── reads the tunnel URL from a volume
-   │
-   └── Mini App WebView ──────► cloudflared
-                                      │
-                                      ▼
-                                web (Go :8080)
-                                  │       │
-                                  │       └── canvas volume
-                                  ▼
-                            parabolic (Node :3000)
+tictactoe
+minesweeper
+sudoku
+canvas
+chess
+parabolic_chess
+checkers
+flappy
 ```
 
-## Repository structure
+Игровой callback получает подписанный HMAC-токен пользователя, поэтому таблицы лидеров и
+мультиплеер работают и при запуске через HTML5 Game, и через обычный Telegram Mini App.
 
-```text
-cattemis_bot/      Python bot package, handlers, and downloaders
-cloudflared/       Quick Tunnel container and URL publication
-web/server/        Go API and static file server
-web/client/        TypeScript, HTML, and CSS source for the Mini App
-web/parabolic/     JavaScript Node/WebSocket service and Parabolic Chess client
-docker-compose.yml service and volume orchestration
-run.py             bot container entry point
-```
-
-## Validation
+## Локальная проверка
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/cattemis-pycache python -m compileall -q cattemis_bot
-docker build -f web/server/Dockerfile -t cattemis-web-check web
-docker build -t cattemis-parabolic-check web/parabolic
-docker compose config -q
+gofmt -w cmd internal resources web/server
+go test ./...
+
+cd web/client
+npm ci
+npm run build
 ```
 
-The Mini App TypeScript check and Go tests run as part of the `web` image build.
+Проект не использует сторонние Go-модули: Telegram Bot API, загрузчики и LLM-клиент
+реализованы на стандартной библиотеке. Во время работы нужны `yt-dlp`, `ffmpeg` и
+`ffprobe`; для локальной расшифровки дополнительно нужен CLI `whisper`.
 
-## Attribution
+## Структура
 
-The Parabolic Chess integration is based on [MellowYellow7777/parabolic-chess](https://github.com/MellowYellow7777/parabolic-chess). See [`web/parabolic/UPSTREAM.md`](web/parabolic/UPSTREAM.md) for details.
+```text
+cmd/cattemis-bot/     точка входа
+internal/bot/         команды, игры, модерация, медиа и состояние
+internal/telegram/    Telegram Bot API
+internal/downloader/  загрузчики платформ и yt-dlp fallback
+internal/llm/         OpenAI-совместимый клиент и инструменты
+resources/            единый strings.json
+web/server/           Go API Mini App
+web/client/           TypeScript Mini App
+web/parabolic/        Parabolic Chess
+cloudflared/          Cloudflare Quick Tunnel
+```
+
+Скачивай и распространяй только контент, на который у тебя есть права или разрешение автора.

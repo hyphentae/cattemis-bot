@@ -29,8 +29,8 @@ func newServer(botToken string) *server {
 	}
 	return &server{
 		botToken: botToken, rooms: newRoomManager(), chess: newChessRoomManager(),
-		canvas: newCanvasManager(canvasPath),
-		ttt:    newTicTacToeManager(),
+		canvas:  newCanvasManager(canvasPath),
+		ttt:     newTicTacToeManager(),
 		leaders: newLeaderboardManager(leaderboardPath),
 	}
 }
@@ -58,11 +58,12 @@ func (s *server) leaderboard(w http.ResponseWriter, r *http.Request) {
 		Difficulty string `json:"difficulty"`
 		Seconds    int    `json:"seconds"`
 		Mistakes   int    `json:"mistakes"`
+		Score      int    `json:"score"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	view, err := s.leaders.submit(user, request.Game, request.Difficulty, request.Seconds, request.Mistakes)
+	view, err := s.leaders.submit(user, request.Game, request.Difficulty, request.Seconds, request.Mistakes, request.Score)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

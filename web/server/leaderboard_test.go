@@ -10,10 +10,10 @@ func TestLeaderboardKeepsPersonalBestAndPersists(t *testing.T) {
 	manager := newLeaderboardManager(path)
 	user := telegramUser{ID: 7, FirstName: "Player"}
 
-	if _, err := manager.submit(user, "sudoku", "easy", 90, 2); err != nil {
+	if _, err := manager.submit(user, "sudoku", "easy", 90, 2, 0); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.submit(user, "sudoku", "easy", 110, 0); err != nil {
+	if _, err := manager.submit(user, "sudoku", "easy", 110, 0, 0); err != nil {
 		t.Fatal(err)
 	}
 	view, err := newLeaderboardManager(path).view("sudoku", "easy")
@@ -27,15 +27,27 @@ func TestLeaderboardKeepsPersonalBestAndPersists(t *testing.T) {
 
 func TestLeaderboardSortsAndValidates(t *testing.T) {
 	manager := newLeaderboardManager(filepath.Join(t.TempDir(), "leaderboard.json"))
-	_, _ = manager.submit(telegramUser{ID: 1, FirstName: "Slow"}, "minesweeper", "hard", 80, 0)
-	view, err := manager.submit(telegramUser{ID: 2, FirstName: "Fast"}, "minesweeper", "hard", 40, 0)
+	_, _ = manager.submit(telegramUser{ID: 1, FirstName: "Slow"}, "minesweeper", "hard", 80, 0, 0)
+	view, err := manager.submit(telegramUser{ID: 2, FirstName: "Fast"}, "minesweeper", "hard", 40, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(view.Entries) != 2 || view.Entries[0].Name != "Fast" {
 		t.Fatalf("leaderboard is not sorted: %#v", view)
 	}
-	if _, err := manager.submit(telegramUser{ID: 3}, "unknown", "easy", 10, 0); err == nil {
+	if _, err := manager.submit(telegramUser{ID: 3}, "unknown", "easy", 10, 0, 0); err == nil {
 		t.Fatal("expected invalid game error")
+	}
+}
+
+func TestFlappyLeaderboardPrefersHighestScore(t *testing.T) {
+	manager := newLeaderboardManager(filepath.Join(t.TempDir(), "leaderboard.json"))
+	_, _ = manager.submit(telegramUser{ID: 1, FirstName: "Seven"}, "flappy", "normal", 0, 0, 7)
+	view, err := manager.submit(telegramUser{ID: 2, FirstName: "Twelve"}, "flappy", "normal", 0, 0, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Entries) != 2 || view.Entries[0].Score != 12 {
+		t.Fatalf("flappy leaderboard is not sorted by score: %#v", view)
 	}
 }

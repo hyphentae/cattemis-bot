@@ -1,19 +1,24 @@
 volumes:
   tunnel:
   canvas:
+  bot-data:
 
 services:
-
   parabolic:
     build: web/parabolic
     restart: unless-stopped
 
   web:
     build:
-      context: web
-      dockerfile: server/Dockerfile
+      context: .
+      dockerfile: web/server/Dockerfile
     restart: unless-stopped
     env_file: .env
+    environment:
+      PORT: "8080"
+      PARABOLIC_URL: http://parabolic:3000
+      CANVAS_PATH: /data/canvas.json
+      LEADERBOARD_PATH: /data/leaderboard.json
     depends_on:
       - parabolic
     volumes:
@@ -34,9 +39,15 @@ services:
       start_period: 2s
 
   bot:
-    build: .
+    build:
+      context: .
+      target: ${DOCKER_TARGET:-runtime}
     restart: unless-stopped
+    init: true
     env_file: .env
+    environment:
+      ALLOWED_LINKS_FILE: /app/data/allowed-links.json
+      TELEGRAM_WEBAPP_URL_FILE: /tunnel/url.txt
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -44,7 +55,8 @@ services:
         condition: service_healthy
     volumes:
       - tunnel:/tunnel:ro
+      - bot-data:/app/data
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 2G

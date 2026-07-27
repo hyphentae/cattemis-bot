@@ -4,6 +4,8 @@ import { initSudoku } from './sudoku.ts';
 import { initTicTacToe } from './tictactoe.ts';
 import { initPixelCanvas } from './pixel-canvas.ts';
 import { initMinesweeper } from './minesweeper.ts';
+import { initFlappy } from './flappy.ts';
+import { initializeI18n } from './i18n.ts';
 import { createHapticFeedback } from './haptics.ts';
 
 const nativeTelegram = window.Telegram?.WebApp;
@@ -12,6 +14,8 @@ const telegram = {
   HapticFeedback: createHapticFeedback(nativeTelegram?.HapticFeedback),
 };
 const screens = document.querySelectorAll('.screen');
+
+await initializeI18n();
 
 function initializeTelegram() {
   if (!nativeTelegram) return;
@@ -48,6 +52,7 @@ initSudoku({ telegram, showScreen });
 initChess({ telegram, showScreen });
 initPixelCanvas({ telegram, showScreen });
 initMinesweeper({ telegram, showScreen });
+initFlappy({ telegram, showScreen });
 
 const launchedGame = new URLSearchParams(window.location.hash.slice(1)).get('game');
 const gameLaunchButtons = {
@@ -57,6 +62,7 @@ const gameLaunchButtons = {
   parabolic_chess: 'open-parabolic-chess',
   chess: 'open-chess',
   minesweeper: 'open-minesweeper',
+  flappy: 'open-flappy',
 };
 const launchButton = document.getElementById(gameLaunchButtons[launchedGame]);
 if (launchButton) {
