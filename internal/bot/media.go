@@ -128,6 +128,8 @@ func humanDownloadError(rawURL string, err error) string {
 		return resources.Get("downloader.error.not_found")
 	case strings.Contains(text, "timeout") || strings.Contains(text, "deadline"):
 		return resources.Get("downloader.error.timeout")
+	case strings.Contains(text, "instagram download failed"):
+		return resources.Get("downloader.error.instagram_failed")
 	default:
 		_ = rawURL
 		return resources.Get("downloader.error.generic")

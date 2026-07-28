@@ -1494,47 +1494,11 @@ button.card:active { transform: scale(.975); }
   padding: .25rem 0 1.25rem;
 }
 
-.arcade-header,
 .games-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
-.arcade-header { min-height: 42px; margin-bottom: 1.4rem; }
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  color: #fff;
-  font-size: 1.08rem;
-  font-weight: 800;
-  letter-spacing: -.06em;
-  text-decoration: none;
-}
-
-.brand span span { color: #ff866b; }
-.brand-mark { color: #111216; font-size: .7rem; letter-spacing: 0; text-align: center; }
-.brand-mark::before { display: grid; width: 1.58rem; height: 1.58rem; border-radius: 50%; place-items: center; background: #ff866b; content: ""; }
-.brand-mark { position: relative; }
-.brand-mark::after { position: absolute; inset: 0; display: grid; place-items: center; content: "◕"; }
-
-.online-status {
-  display: inline-flex;
-  padding: .38rem .6rem;
-  border: 1px solid rgba(255,255,255,.09);
-  border-radius: 999px;
-  align-items: center;
-  gap: .4rem;
-  color: rgba(255,255,255,.65);
-  background: rgba(15,16,22,.46);
-  font-size: .67rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.online-status i { width: .42rem; height: .42rem; border-radius: 50%; background: #9ae57c; box-shadow: 0 0 0 .2rem rgba(154,229,124,.12); }
 
 .arcade-hero {
   position: relative;

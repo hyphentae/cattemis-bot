@@ -191,6 +191,10 @@ func (d *Downloader) downloadDirect(ctx context.Context, value *url.URL) (Result
 }
 
 func (d *Downloader) fetchMedia(ctx context.Context, rawURL, expectedKind string) (Media, error) {
+	return d.fetchMediaWithReferer(ctx, rawURL, expectedKind, "")
+}
+
+func (d *Downloader) fetchMediaWithReferer(ctx context.Context, rawURL, expectedKind, referer string) (Media, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || !isPublicURL(parsed) {
 		return Media{}, errors.New("media URL does not resolve to a public address")
@@ -200,6 +204,9 @@ func (d *Downloader) fetchMedia(ctx context.Context, rawURL, expectedKind string
 		return Media{}, err
 	}
 	request.Header.Set("User-Agent", browserUserAgent)
+	if referer != "" {
+		request.Header.Set("Referer", referer)
+	}
 	response, err := d.client.Do(request)
 	if err != nil {
 		return Media{}, err

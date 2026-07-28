@@ -16,64 +16,155 @@ import (
 )
 
 var (
-	instagramShortcode = regexp.MustCompile(`(?i)/(?:p|reel|reels|tv)/([A-Za-z0-9_-]+)`)
-	metaTagPattern     = regexp.MustCompile(`(?is)<meta\s+[^>]*>`)
-	metaProperty       = regexp.MustCompile(`(?i)(?:property|name)\s*=\s*["']([^"']+)["']`)
-	metaContent        = regexp.MustCompile(`(?i)content\s*=\s*["']([^"']*)["']`)
-	displayURLPattern  = regexp.MustCompile(`(?s)"(?:display_url|video_url)"\s*:\s*"((?:\\.|[^"])*)"`)
+	instagramShortcode  = regexp.MustCompile(`(?i)/(p|reel|reels|tv)/([A-Za-z0-9_-]+)`)
+	metaTagPattern      = regexp.MustCompile(`(?is)<meta\s+[^>]*>`)
+	metaProperty        = regexp.MustCompile(`(?i)(?:property|name)\s*=\s*["']([^"']+)["']`)
+	metaContent         = regexp.MustCompile(`(?i)content\s*=\s*["']([^"']*)["']`)
+	videoURLPattern     = regexp.MustCompile(`(?s)video_url\\*"\s*:\s*\\*"(.*?)\\*"`)
+	displayURLPattern   = regexp.MustCompile(`(?s)display_url\\*"\s*:\s*\\*"(.*?)\\*"`)
+	instagramCaptionKey = regexp.MustCompile(`(?s)(?:caption_text|edge_media_to_caption).*?text\\*"\s*:\s*\\*"(.*?)\\*"`)
 )
+
+type instagramApifyInput struct {
+	URL []string `json:"url"`
+}
 
 func (d *Downloader) downloadInstagram(ctx context.Context, value *url.URL) (Result, error) {
 	match := instagramShortcode.FindStringSubmatch(value.Path)
-	if len(match) != 2 {
+	if len(match) != 3 {
 		return Result{}, errors.New("Instagram URL does not contain a post or Reel shortcode")
 	}
-	canonical := "https://www.instagram.com/p/" + match[1] + "/"
+	mediaType := strings.ToLower(match[1])
+	if mediaType == "reels" {
+		mediaType = "reel"
+	}
+	canonical := "https://www.instagram.com/" + mediaType + "/" + match[2] + "/"
 	embed := canonical + "embed/captioned/"
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, embed, nil)
+	var combined error
+	caption := ""
+	for _, pageURL := range []string{canonical, embed} {
+		page, err := d.fetchInstagramPage(ctx, pageURL)
+		if err != nil {
+			combined = errors.Join(combined, err)
+			continue
+		}
+		urls, pageCaption := instagramPageMedia(page)
+		caption = firstNonEmpty(caption, pageCaption)
+		if len(urls) == 0 {
+			continue
+		}
+		items, err := d.downloadInstagramItems(ctx, urls, canonical)
+		if err == nil && len(items) > 0 {
+			return Result{Items: items, Caption: caption, Source: "instagram"}, nil
+		}
+		combined = errors.Join(combined, err)
+	}
+
+	canonicalURL, _ := url.Parse(canonical)
+	if canonicalURL != nil {
+		result, err := d.downloadYTDLPWithOptions(ctx, canonicalURL, true)
+		if err == nil {
+			result.Source = "instagram"
+			if result.Caption == "" {
+				result.Caption = caption
+			}
+			return result, nil
+		}
+		combined = errors.Join(combined, err)
+	}
+
+	result, err := d.downloadInstagramApify(ctx, canonical)
+	if err == nil {
+		if result.Caption == "" {
+			result.Caption = caption
+		}
+		return result, nil
+	}
+	combined = errors.Join(combined, err)
+	return Result{}, fmt.Errorf("instagram download failed: %w", combined)
+}
+
+func (d *Downloader) fetchInstagramPage(ctx context.Context, pageURL string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
 	if err != nil {
-		return Result{}, err
+		return "", err
 	}
 	request.Header.Set("User-Agent", browserUserAgent)
 	request.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	response, err := d.client.Do(request)
-	if err == nil {
-		defer response.Body.Close()
-		if response.StatusCode >= 200 && response.StatusCode < 300 {
-			page, readErr := io.ReadAll(io.LimitReader(response.Body, 5*1024*1024))
-			if readErr == nil {
-				urls, caption := instagramPageMedia(string(page))
-				if len(urls) > 0 {
-					items, downloadErr := d.downloadInstagramItems(ctx, urls)
-					if downloadErr == nil && len(items) > 0 {
-						return Result{Items: items, Caption: caption, Source: "instagram"}, nil
-					}
-				}
-			}
-		}
+	if err != nil {
+		return "", err
 	}
-	return d.downloadInstagramApify(ctx, canonical)
+	defer response.Body.Close()
+	if !IsInstagram(response.Request.URL) {
+		return "", errors.New("Instagram redirected to an unsupported host")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("Instagram page HTTP %d", response.StatusCode)
+	}
+	page, err := io.ReadAll(io.LimitReader(response.Body, 5*1024*1024))
+	if err != nil {
+		return "", err
+	}
+	return string(page), nil
 }
 
 func instagramPageMedia(page string) ([]string, string) {
 	caption := firstNonEmpty(metaValue(page, "og:description"), metaValue(page, "description"))
 	caption = cleanInstagramDescription(html.UnescapeString(caption))
-	urls := make([]string, 0)
-	for _, property := range []string{"og:video:secure_url", "og:video", "og:image"} {
-		if value := metaValue(page, property); value != "" {
-			urls = append(urls, html.UnescapeString(value))
+	if caption == "" {
+		if match := instagramCaptionKey.FindStringSubmatch(page); len(match) == 2 {
+			caption = cleanText(decodeInstagramJSONString(match[1]))
 		}
 	}
-	for _, match := range displayURLPattern.FindAllStringSubmatch(page, -1) {
+
+	videos := make([]string, 0)
+	for _, property := range []string{"og:video:secure_url", "og:video", "og:image"} {
+		if value := metaValue(page, property); value != "" {
+			if property == "og:image" {
+				continue
+			}
+			videos = append(videos, html.UnescapeString(value))
+		}
+	}
+	videos = append(videos, instagramJSONURLs(page, videoURLPattern)...)
+	if videos = uniqueHTTPS(videos); len(videos) > 0 {
+		return videos, caption
+	}
+
+	images := instagramJSONURLs(page, displayURLPattern)
+	if len(images) == 0 {
+		if value := metaValue(page, "og:image"); value != "" {
+			images = append(images, html.UnescapeString(value))
+		}
+	}
+	return uniqueHTTPS(images), caption
+}
+
+func instagramJSONURLs(page string, pattern *regexp.Regexp) []string {
+	values := make([]string, 0)
+	for _, match := range pattern.FindAllStringSubmatch(page, -1) {
 		if len(match) != 2 {
 			continue
 		}
-		var decoded string
-		if json.Unmarshal([]byte(`"`+match[1]+`"`), &decoded) == nil {
-			urls = append(urls, decoded)
+		if decoded := decodeInstagramJSONString(match[1]); decoded != "" {
+			values = append(values, decoded)
 		}
 	}
-	return uniqueHTTPS(urls), caption
+	return values
+}
+
+func decodeInstagramJSONString(value string) string {
+	decoded := value
+	for range 4 {
+		var next string
+		if json.Unmarshal([]byte(`"`+decoded+`"`), &next) != nil || next == decoded {
+			break
+		}
+		decoded = next
+	}
+	decoded = strings.ReplaceAll(decoded, `\/`, `/`)
+	return html.UnescapeString(strings.TrimSpace(decoded))
 }
 
 func metaValue(page, requested string) string {
@@ -101,13 +192,10 @@ func (d *Downloader) downloadInstagramApify(ctx context.Context, postURL string)
 	}
 	actor := strings.ReplaceAll(d.cfg.APIFYInstagramActor, "/", "~")
 	endpoint := fmt.Sprintf(
-		"https://api.apify.com/v2/acts/%s/run-sync-get-dataset-items",
+		"https://api.apify.com/v2/acts/%s/run-sync-get-dataset-items?format=json&clean=true&maxItems=1",
 		url.PathEscape(actor),
 	)
-	input := map[string]any{
-		"directUrls": []string{postURL}, "resultsType": "details", "resultsLimit": 1,
-		"addParentData": false,
-	}
+	input := instagramApifyInput{URL: []string{postURL}}
 	data, _ := json.Marshal(input)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
@@ -124,9 +212,17 @@ func (d *Downloader) downloadInstagramApify(ctx context.Context, postURL string)
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 2048))
 		return Result{}, fmt.Errorf("Apify HTTP %d: %s", response.StatusCode, strings.TrimSpace(string(body)))
 	}
-	var items []map[string]any
-	if err := json.NewDecoder(response.Body).Decode(&items); err != nil {
+	responseData, err := io.ReadAll(io.LimitReader(response.Body, 10*1024*1024))
+	if err != nil {
 		return Result{}, err
+	}
+	var items []map[string]any
+	if err := json.Unmarshal(responseData, &items); err != nil {
+		var item map[string]any
+		if singleErr := json.Unmarshal(responseData, &item); singleErr != nil {
+			return Result{}, err
+		}
+		items = []map[string]any{item}
 	}
 	if len(items) == 0 {
 		return Result{}, errors.New("Apify returned no Instagram results")
@@ -135,7 +231,7 @@ func (d *Downloader) downloadInstagramApify(ctx context.Context, postURL string)
 	if len(mediaURLs) == 0 {
 		return Result{}, errors.New("Apify returned no Instagram media URLs")
 	}
-	downloaded, err := d.downloadInstagramItems(ctx, mediaURLs)
+	downloaded, err := d.downloadInstagramItems(ctx, mediaURLs, postURL)
 	if err != nil {
 		return Result{}, err
 	}
@@ -144,6 +240,23 @@ func (d *Downloader) downloadInstagramApify(ctx context.Context, postURL string)
 }
 
 func collectApifyMedia(item map[string]any) []string {
+	if result, ok := item["result"].([]any); ok {
+		resolved := make([]string, 0, len(result))
+		for _, value := range result {
+			entry, ok := value.(map[string]any)
+			if !ok {
+				continue
+			}
+			raw, _ := entry["url"].(string)
+			if strings.HasPrefix(raw, "https://") {
+				resolved = append(resolved, raw)
+			}
+		}
+		if resolved = uniqueHTTPS(resolved); len(resolved) > 0 {
+			return resolved
+		}
+	}
+
 	type candidate struct {
 		priority int
 		value    string
@@ -165,13 +278,23 @@ func collectApifyMedia(item map[string]any) []string {
 				return
 			}
 			lower := strings.ToLower(key)
+			for _, skipped := range []string{
+				"thumbnail", "thumb", "avatar", "profile", "icon", "logo",
+				"permalink", "shortcode", "posturl", "pageurl", "inputurl",
+			} {
+				if strings.Contains(lower, skipped) {
+					return
+				}
+			}
 			priority := 0
 			switch {
 			case strings.Contains(lower, "video"):
 				priority = 4
 			case strings.Contains(lower, "image") || strings.Contains(lower, "photo") || strings.Contains(lower, "display"):
 				priority = 3
-			case strings.Contains(lower, "url"):
+			case strings.Contains(lower, "download") || strings.Contains(lower, "media") || strings.Contains(lower, "src"):
+				priority = 2
+			case lower == "url":
 				priority = 1
 			}
 			if priority > 0 {
@@ -188,8 +311,9 @@ func collectApifyMedia(item map[string]any) []string {
 	return uniqueHTTPS(raw)
 }
 
-func (d *Downloader) downloadInstagramItems(ctx context.Context, rawURLs []string) ([]Media, error) {
+func (d *Downloader) downloadInstagramItems(ctx context.Context, rawURLs []string, referer string) ([]Media, error) {
 	items := make([]Media, 0, len(rawURLs))
+	var combined error
 	for _, raw := range rawURLs {
 		parsed, err := url.Parse(raw)
 		if err != nil || parsed.Scheme != "https" {
@@ -198,11 +322,9 @@ func (d *Downloader) downloadInstagramItems(ctx context.Context, rawURLs []strin
 		if !instagramMediaHost(parsed.Hostname()) {
 			continue
 		}
-		item, err := d.fetchMedia(ctx, parsed.String(), "")
+		item, err := d.fetchMediaWithReferer(ctx, parsed.String(), "", referer)
 		if err != nil {
-			if len(items) == 0 {
-				return nil, err
-			}
+			combined = errors.Join(combined, err)
 			continue
 		}
 		items = append(items, item)
@@ -211,13 +333,25 @@ func (d *Downloader) downloadInstagramItems(ctx context.Context, rawURLs []strin
 		}
 	}
 	if len(items) == 0 {
+		if combined != nil {
+			return nil, combined
+		}
 		return nil, errors.New("Instagram media could not be downloaded")
 	}
 	return items, nil
 }
 
 func instagramMediaHost(host string) bool {
-	return hostMatches(host, "cdninstagram.com", "fbcdn.net", "instagram.com", "apifyusercontent.com", "amazonaws.com")
+	return hostMatches(
+		host,
+		"cdninstagram.com",
+		"fbcdn.net",
+		"instagram.com",
+		"snapcdn.app",
+		"apify.com",
+		"apifyusercontent.com",
+		"amazonaws.com",
+	)
 }
 
 func uniqueHTTPS(values []string) []string {

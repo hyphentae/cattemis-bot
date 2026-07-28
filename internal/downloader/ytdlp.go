@@ -15,6 +15,10 @@ import (
 )
 
 func (d *Downloader) downloadYTDLP(ctx context.Context, value *url.URL) (Result, error) {
+	return d.downloadYTDLPWithOptions(ctx, value, false)
+}
+
+func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.URL, allowPlaylist bool) (Result, error) {
 	directory, err := os.MkdirTemp("", "cattemis-ytdlp-*")
 	if err != nil {
 		return Result{}, err
@@ -23,12 +27,17 @@ func (d *Downloader) downloadYTDLP(ctx context.Context, value *url.URL) (Result,
 
 	output := filepath.Join(directory, "%(id)s.%(ext)s")
 	arguments := []string{
-		"--no-playlist", "--no-progress", "--newline",
+		"--no-progress", "--newline",
 		"--max-filesize", strconv.FormatInt(d.cfg.MaxFileSize, 10),
 		"--merge-output-format", "mp4",
 		"--write-info-json",
 		"--output", output,
 		"--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+	}
+	if allowPlaylist {
+		arguments = append(arguments, "--yes-playlist", "--playlist-end", strconv.Itoa(d.cfg.MaxMediaItems))
+	} else {
+		arguments = append(arguments, "--no-playlist")
 	}
 	if d.cfg.YTDownloadCookies != "" {
 		arguments = append(arguments, "--cookies", d.cfg.YTDownloadCookies)
@@ -83,6 +92,8 @@ func (d *Downloader) downloadYTDLP(ctx context.Context, value *url.URL) (Result,
 		source = "youtube"
 	} else if IsReddit(value) {
 		source = "reddit"
+	} else if IsInstagram(value) {
+		source = "instagram"
 	}
 	return Result{Items: items, Caption: caption, Source: source}, nil
 }
