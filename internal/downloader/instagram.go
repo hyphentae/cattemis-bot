@@ -16,13 +16,17 @@ import (
 )
 
 var (
-	instagramShortcode  = regexp.MustCompile(`(?i)/(p|reel|reels|tv)/([A-Za-z0-9_-]+)`)
-	metaTagPattern      = regexp.MustCompile(`(?is)<meta\s+[^>]*>`)
-	metaProperty        = regexp.MustCompile(`(?i)(?:property|name)\s*=\s*["']([^"']+)["']`)
-	metaContent         = regexp.MustCompile(`(?i)content\s*=\s*["']([^"']*)["']`)
-	videoURLPattern     = regexp.MustCompile(`(?s)video_url\\*"\s*:\s*\\*"(.*?)\\*"`)
-	displayURLPattern   = regexp.MustCompile(`(?s)display_url\\*"\s*:\s*\\*"(.*?)\\*"`)
-	instagramCaptionKey = regexp.MustCompile(`(?s)(?:caption_text|edge_media_to_caption).*?text\\*"\s*:\s*\\*"(.*?)\\*"`)
+	instagramShortcode = regexp.MustCompile(`(?i)/(p|reel|reels|tv)/([A-Za-z0-9_-]+)`)
+	metaTagPattern = regexp.MustCompile(`(?is)<meta\s+[^>]*>`)
+	metaProperty = regexp.MustCompile(`(?i)(?:property|name)\s*=\s*["']([^"']+)["']`)
+	metaContent = regexp.MustCompile(`(?i)content\s*=\s*["']([^"']*)["']`)
+	videoURLPattern = regexp.MustCompile(`(?s)video_url\\*"\s*:\s*\\*"(.*?)\\*"`)
+	displayURLPattern = regexp.MustCompile(`(?s)display_url\\*"\s*:\s*\\*"(.*?)\\*"`)
+	instagramCaptionPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`(?s)caption_text\\*"\s*:\s*\\*"(.*?)\\*"`),
+		regexp.MustCompile(`(?s)edge_media_to_caption.*?text\\*"\s*:\s*\\*"(.*?)\\*"`),
+		regexp.MustCompile(`(?s)caption\\*"\s*:\s*\{.*?text\\*"\s*:\s*\\*"(.*?)\\*"`),
+	}
 )
 
 type instagramApifyInput struct {
@@ -42,6 +46,7 @@ func (d *Downloader) downloadInstagram(ctx context.Context, value *url.URL) (Res
 	embed := canonical + "embed/captioned/"
 	var combined error
 	caption := ""
+	mediaCandidates := make([][]string, 0, 2)
 	for _, pageURL := range []string{canonical, embed} {
 		page, err := d.fetchInstagramPage(ctx, pageURL)
 		if err != nil {
@@ -50,9 +55,11 @@ func (d *Downloader) downloadInstagram(ctx context.Context, value *url.URL) (Res
 		}
 		urls, pageCaption := instagramPageMedia(page)
 		caption = firstNonEmpty(caption, pageCaption)
-		if len(urls) == 0 {
-			continue
+		if len(urls) > 0 {
+			mediaCandidates = append(mediaCandidates, urls)
 		}
+	}
+	for _, urls := range mediaCandidates {
 		items, err := d.downloadInstagramItems(ctx, urls, canonical)
 		if err == nil && len(items) > 0 {
 			return Result{Items: items, Caption: caption, Source: "instagram"}, nil
@@ -113,8 +120,13 @@ func instagramPageMedia(page string) ([]string, string) {
 	caption := firstNonEmpty(metaValue(page, "og:description"), metaValue(page, "description"))
 	caption = cleanInstagramDescription(html.UnescapeString(caption))
 	if caption == "" {
-		if match := instagramCaptionKey.FindStringSubmatch(page); len(match) == 2 {
-			caption = cleanText(decodeInstagramJSONString(match[1]))
+		for _, pattern := range instagramCaptionPatterns {
+			if match := pattern.FindStringSubmatch(page); len(match) == 2 {
+				caption = cleanText(decodeInstagramJSONString(match[1]))
+				if caption != "" {
+					break
+				}
+			}
 		}
 	}
 

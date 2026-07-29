@@ -19,6 +19,7 @@ func (d *Downloader) downloadYTDLP(ctx context.Context, value *url.URL) (Result,
 }
 
 func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.URL, allowPlaylist bool) (Result, error) {
+	isYouTube := IsYouTube(value)
 	directory, err := os.MkdirTemp("", "cattemis-ytdlp-*")
 	if err != nil {
 		return Result{}, err
@@ -29,11 +30,10 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 	arguments := []string{
 		"--no-progress", "--newline",
 		"--max-filesize", strconv.FormatInt(d.cfg.MaxFileSize, 10),
-		"--merge-output-format", "mp4",
 		"--write-info-json",
 		"--output", output,
-		"--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
 	}
+	arguments = append(arguments, ytdlpMediaOptions(value)...)
 	if allowPlaylist {
 		arguments = append(arguments, "--yes-playlist", "--playlist-end", strconv.Itoa(d.cfg.MaxMediaItems))
 	} else {
@@ -66,12 +66,15 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 		fullPath := filepath.Join(directory, entry.Name())
 		if strings.HasSuffix(entry.Name(), ".info.json") {
 			if caption == "" {
-				caption = ytdlpCaption(fullPath)
+				caption = ytdlpCaption(fullPath, isYouTube)
 			}
 			continue
 		}
 		kind := kindFromExtension(entry.Name())
 		if kind == "" {
+			continue
+		}
+		if isYouTube && kind == "video" && !strings.EqualFold(filepath.Ext(entry.Name()), ".mp4") {
 			continue
 		}
 		info, err := entry.Info()
@@ -88,7 +91,7 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 		return Result{}, errors.New("yt-dlp produced no supported media")
 	}
 	source := "ytdlp"
-	if IsYouTube(value) {
+	if isYouTube {
 		source = "youtube"
 	} else if IsReddit(value) {
 		source = "reddit"
@@ -98,7 +101,17 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 	return Result{Items: items, Caption: caption, Source: source}, nil
 }
 
-func ytdlpCaption(filename string) string {
+func ytdlpMediaOptions(value *url.URL) []string {
+	format := "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
+	options := []string{"--merge-output-format", "mp4"}
+	if IsYouTube(value) {
+		format = "bestvideo[ext=mp4][vcodec^=av01][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=hev1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=hvc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][height<=1080]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
+		options = append(options, "--recode-video", "mp4")
+	}
+	return append(options, "--format", format)
+}
+
+func ytdlpCaption(filename string, titleOnly bool) string {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return ""
@@ -107,12 +120,20 @@ func ytdlpCaption(filename string) string {
 	if json.Unmarshal(data, &info) != nil {
 		return ""
 	}
+	return ytdlpCaptionFromInfo(info, titleOnly)
+}
+
+func ytdlpCaptionFromInfo(info map[string]any, titleOnly bool) string {
 	title, _ := info["title"].(string)
+	title = strings.TrimSpace(title)
+	if titleOnly {
+		return title
+	}
 	description, _ := info["description"].(string)
 	uploader := firstMapString(info, "uploader", "channel", "creator")
 	parts := make([]string, 0, 3)
-	if strings.TrimSpace(title) != "" {
-		parts = append(parts, strings.TrimSpace(title))
+	if title != "" {
+		parts = append(parts, title)
 	}
 	if strings.TrimSpace(description) != "" && strings.TrimSpace(description) != strings.TrimSpace(title) {
 		parts = append(parts, strings.TrimSpace(description))

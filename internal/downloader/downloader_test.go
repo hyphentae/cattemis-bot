@@ -1,6 +1,11 @@
 package downloader
 
-import "testing"
+import (
+	"net/url"
+	"slices"
+	"strings"
+	"testing"
+)
 
 func TestSupportedPlatformsAndDirectMedia(t *testing.T) {
 	valid := []string{
@@ -34,4 +39,63 @@ func TestCaptionTruncatesByRunes(t *testing.T) {
 	if len([]rune(result)) != 1024 {
 		t.Fatalf("expected 1024 runes, got %d", len([]rune(result)))
 	}
+}
+
+func TestYouTubeYTDLPOptionsAlwaysProduceMP4(t *testing.T) {
+	value, err := url.Parse("https://www.youtube.com/watch?v=abcdefghijk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := ytdlpMediaOptions(value)
+	if !slices.Contains(options, "--recode-video") {
+		t.Fatal("YouTube options must force final conversion to MP4")
+	}
+	if !containsAdjacent(options, "--recode-video", "mp4") {
+		t.Fatalf("expected --recode-video mp4, got %#v", options)
+	}
+	formatIndex := slices.Index(options, "--format")
+	if formatIndex < 0 || formatIndex+1 >= len(options) {
+		t.Fatalf("missing format selection in %#v", options)
+	}
+	format := options[formatIndex+1]
+	if !strings.Contains(format, "[ext=mp4]") || !strings.Contains(format, "[ext=m4a]") {
+		t.Fatalf("YouTube format must prefer MP4 video and M4A audio, got %q", format)
+	}
+	av1Index := strings.Index(format, "[vcodec^=av01]")
+	hevcIndex := strings.Index(format, "[vcodec^=hev1]")
+	h264Index := strings.Index(format, "[vcodec^=avc1]")
+	if av1Index < 0 || hevcIndex < 0 || h264Index < 0 || !(av1Index < hevcIndex && hevcIndex < h264Index) {
+		t.Fatalf("expected codec preference AV1, HEVC, H.264, got %q", format)
+	}
+}
+
+func TestNonYouTubeYTDLPOptionsDoNotForceReencode(t *testing.T) {
+	value, err := url.Parse("https://www.reddit.com/r/cats/comments/example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := ytdlpMediaOptions(value)
+	if slices.Contains(options, "--recode-video") {
+		t.Fatalf("non-YouTube downloads must not be needlessly re-encoded: %#v", options)
+	}
+}
+
+func TestYouTubeCaptionContainsOnlyTitle(t *testing.T) {
+	info := map[string]any{
+		"title":       "  Video title  ",
+		"description": "Long video description",
+		"uploader":    "Channel name",
+	}
+	if caption := ytdlpCaptionFromInfo(info, true); caption != "Video title" {
+		t.Fatalf("expected only the YouTube title, got %q", caption)
+	}
+}
+
+func containsAdjacent(values []string, first, second string) bool {
+	for index := 0; index+1 < len(values); index++ {
+		if values[index] == first && values[index+1] == second {
+			return true
+		}
+	}
+	return false
 }

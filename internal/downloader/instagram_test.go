@@ -39,6 +39,19 @@ func TestInstagramPageMediaPrefersVideoOverPreview(t *testing.T) {
 	}
 }
 
+func TestInstagramPageMediaExtractsPhotoCaptionFromJSON(t *testing.T) {
+	page := `<script>{"display_url":"https:\/\/scontent.cdninstagram.com\/photo.jpg","caption_text":"Photo caption from Instagram"}</script>`
+
+	urls, caption := instagramPageMedia(page)
+	expected := []string{"https://scontent.cdninstagram.com/photo.jpg"}
+	if !reflect.DeepEqual(urls, expected) {
+		t.Fatalf("unexpected Instagram image URLs:\nwant: %#v\n got: %#v", expected, urls)
+	}
+	if caption != "Photo caption from Instagram" {
+		t.Fatalf("unexpected Instagram photo caption: %q", caption)
+	}
+}
+
 func TestCollectApifyMediaUsesResultEntriesAndSkipsCover(t *testing.T) {
 	item := map[string]any{
 		"thumb": "https://snapcdn.app/cover.jpg",
