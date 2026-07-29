@@ -106,7 +106,7 @@ func ytdlpMediaOptions(value *url.URL) []string {
 	options := []string{"--merge-output-format", "mp4"}
 	if IsYouTube(value) {
 		format = "bestvideo[ext=mp4][vcodec^=av01][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=hev1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=hvc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][height<=1080]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
-		options = append(options, "--recode-video", "mp4")
+		options = append(options, "--js-runtimes", "deno", "--recode-video", "mp4")
 	}
 	return append(options, "--format", format)
 }

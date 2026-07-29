@@ -56,7 +56,8 @@ that user.
   leaderboards;
 - TypeScript 5 and Vite — Mini App interface;
 - Node.js, Express, and WebSocket — Parabolic Chess;
-- `yt-dlp`, FFmpeg, and FFprobe — media processing and downloader fallbacks;
+- `yt-dlp`, Deno, FFmpeg, and FFprobe — YouTube challenge solving, media
+  processing, and downloader fallbacks;
 - optional OpenAI Whisper CLI — local audio and video transcription;
 - Docker Compose and Cloudflare Quick Tunnel — service orchestration and HTTPS
   access from Telegram.
@@ -192,8 +193,9 @@ npm ci
 npm run build
 ```
 
-The bot requires `yt-dlp`, `ffmpeg`, and `ffprobe` at runtime. Local
-transcription additionally requires the `whisper` CLI.
+The bot requires `yt-dlp` with its EJS component, Deno, `ffmpeg`, and `ffprobe`
+at runtime. The Docker image includes all of them. Local transcription
+additionally requires the `whisper` CLI.
 
 ## Repository structure
 

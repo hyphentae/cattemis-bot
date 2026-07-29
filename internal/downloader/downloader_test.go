@@ -53,6 +53,9 @@ func TestYouTubeYTDLPOptionsAlwaysProduceMP4(t *testing.T) {
 	if !containsAdjacent(options, "--recode-video", "mp4") {
 		t.Fatalf("expected --recode-video mp4, got %#v", options)
 	}
+	if !containsAdjacent(options, "--js-runtimes", "deno") {
+		t.Fatalf("expected the Deno JavaScript runtime for YouTube, got %#v", options)
+	}
 	formatIndex := slices.Index(options, "--format")
 	if formatIndex < 0 || formatIndex+1 >= len(options) {
 		t.Fatalf("missing format selection in %#v", options)

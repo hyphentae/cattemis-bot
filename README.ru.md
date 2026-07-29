@@ -55,7 +55,8 @@ Telegram. Чтобы вызвать другого пользователя, о�
   таблицы лидеров;
 - TypeScript 5 и Vite — интерфейс Mini App;
 - Node.js, Express и WebSocket — Parabolic Chess;
-- `yt-dlp`, FFmpeg и FFprobe — обработка медиа и резервные загрузчики;
+- `yt-dlp`, Deno, FFmpeg и FFprobe — решение проверок YouTube, обработка медиа
+  и резервные загрузчики;
 - необязательный OpenAI Whisper CLI — локальная расшифровка аудио и видео;
 - Docker Compose и Cloudflare Quick Tunnel — запуск сервисов и HTTPS-доступ из
   Telegram.
@@ -192,8 +193,9 @@ npm ci
 npm run build
 ```
 
-Для работы бота требуются `yt-dlp`, `ffmpeg` и `ffprobe`. Для локальной
-расшифровки дополнительно нужен CLI `whisper`.
+Для работы бота требуются `yt-dlp` с компонентом EJS, Deno, `ffmpeg` и
+`ffprobe`. Docker-образ уже включает их. Для локальной расшифровки
+дополнительно нужен CLI `whisper`.
 
 ## Структура репозитория
 
