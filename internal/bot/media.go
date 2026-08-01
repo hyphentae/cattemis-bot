@@ -219,8 +219,7 @@ func (b *Bot) handleLLM(ctx context.Context, message *telegram.Message) error {
 			resources.Format("llm.error.request_failed", map[string]any{"error": err}), message.MessageID, nil)
 		return sendErr
 	}
-	_, err = b.telegram.SendMessage(ctx, message.Chat.ID, answer, message.MessageID, nil)
-	return err
+	return b.sendLLMAnswer(ctx, message, answer)
 }
 
 func (b *Bot) collectLLMAttachments(ctx context.Context, message *telegram.Message) ([]cachedAttachment, error) {

@@ -118,13 +118,23 @@ volume. Бот ждёт успешную healthcheck-проверку тунне
 LLM_ENABLED=true
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=your_api_key
-LLM_MODEL=your_model
-LLM_WEB_SEARCH_ENABLED=true
+LLM_MODEL=perplexity/sonar-pro
+LLM_WEB_SEARCH_ENABLED=false
 LLM_VISION_ENABLED=true
 LLM_TIMEZONE=Asia/Almaty
 LLM_VIDEO_FRAME_COUNT=3
 WHISPER_ENABLED=true
 ```
+
+Perplexity доступен через тот же ключ OpenRouter: укажи модель
+`perplexity/sonar-pro`. Она использует собственный поиск, поэтому для неё можно
+оставить `LLM_WEB_SEARCH_ENABLED=false`. Для остальных моделей OpenRouter
+значение `true` подключает серверный поиск с движком Perplexity. Бот использует
+результаты в ответе, но не добавляет отдельный список ссылок.
+
+История каждого чата сохраняется в `LLM_HISTORY_FILE` и переживает перезапуск
+контейнера; `/reset` удаляет её и из памяти, и с диска. Длинные ответы
+автоматически делятся на несколько сообщений без обрезания текста.
 
 В личном чате бот отвечает на обычные текстовые и медиа-сообщения. В группе
 LLM-запрос должен:

@@ -119,13 +119,23 @@ Example OpenRouter configuration:
 LLM_ENABLED=true
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=your_api_key
-LLM_MODEL=your_model
-LLM_WEB_SEARCH_ENABLED=true
+LLM_MODEL=perplexity/sonar-pro
+LLM_WEB_SEARCH_ENABLED=false
 LLM_VISION_ENABLED=true
 LLM_TIMEZONE=Asia/Almaty
 LLM_VIDEO_FRAME_COUNT=3
 WHISPER_ENABLED=true
 ```
+
+Perplexity is available through the same OpenRouter key: set the model to
+`perplexity/sonar-pro`. It has native search, so `LLM_WEB_SEARCH_ENABLED=false`
+is sufficient for that model. For other OpenRouter models, setting it to `true`
+enables OpenRouter's server-side web search with the Perplexity engine. Search
+results inform the answer, but the bot does not append a separate source list.
+
+Per-chat history is persisted in `LLM_HISTORY_FILE` across container restarts;
+`/reset` removes it from memory and disk. Long answers are split across multiple
+Telegram messages instead of being truncated.
 
 In private chats, the bot responds to ordinary text and media messages. In
 groups, an LLM request must:

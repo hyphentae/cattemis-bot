@@ -38,6 +38,7 @@ type Config struct {
 	LLMMaxTokens        int
 	LLMTemperature      float64
 	LLMMaxHistory       int
+	LLMHistoryFile      string
 	LLMWebSearch        bool
 	LLMWebSearchResults int
 	LLMTimezone         string
@@ -78,6 +79,7 @@ func Load() (Config, error) {
 		LLMMaxTokens:        envInt("LLM_MAX_TOKENS", 480, 1, 65536),
 		LLMTemperature:      envFloat("LLM_TEMPERATURE", 0.6, 0, 2),
 		LLMMaxHistory:       envInt("LLM_MAX_HISTORY_MESSAGES", 8, 0, 100),
+		LLMHistoryFile:      envString("LLM_HISTORY_FILE", ".cattemis-llm-history.json"),
 		LLMWebSearch:        envBool("LLM_WEB_SEARCH_ENABLED", false),
 		LLMWebSearchResults: envInt("LLM_WEB_SEARCH_MAX_RESULTS", 5, 1, 10),
 		LLMTimezone:         firstNonEmpty(os.Getenv("LLM_TIMEZONE"), os.Getenv("LLM_TIMEZONE_OFFSET"), "Asia/Almaty"),

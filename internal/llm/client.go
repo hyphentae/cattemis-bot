@@ -79,13 +79,17 @@ type completionResponse struct {
 }
 
 func New(cfg config.Config) *Client {
-	return &Client{
+	client := &Client{
 		cfg: cfg,
 		http: &http.Client{
 			Timeout: cfg.LLMTimeout,
 		},
 		history: make(map[int64][]chatMessage),
 	}
+	if err := client.loadHistory(); err != nil {
+		log.Printf("[llm] could not load history: %v", err)
+	}
+	return client
 }
 
 func (c *Client) Enabled() bool {
@@ -97,6 +101,11 @@ func (c *Client) Reset(chatID int64) bool {
 	defer c.mu.Unlock()
 	_, exists := c.history[chatID]
 	delete(c.history, chatID)
+	if exists {
+		if err := c.persistHistoryLocked(); err != nil {
+			log.Printf("[llm] could not persist history reset: %v", err)
+		}
+	}
 	return exists
 }
 
@@ -156,8 +165,9 @@ func (c *Client) Ask(ctx context.Context, request Request) (string, error) {
 		systemPrompt = resources.Get("llm.default_system_prompt")
 	}
 	systemPrompt += "\n\n" + currentTime(c.cfg.LLMTimezone) + resources.Get("llm.prompt.current_date_instruction")
-	if c.cfg.LLMWebSearch {
+	if c.webSearchAvailable() {
 		systemPrompt += resources.Get("llm.prompt.web_search_instruction")
+		systemPrompt += resources.Get("llm.prompt.web_search_no_links")
 	}
 
 	c.mu.Lock()
@@ -174,10 +184,7 @@ func (c *Client) Ask(ctx context.Context, request Request) (string, error) {
 		}
 	}
 
-	tools := []map[string]any{currentTimeTool()}
-	if c.cfg.LLMWebSearch {
-		tools = append(tools, webSearchTool())
-	}
+	tools := c.requestTools()
 	var response completionResponse
 	searchCache := map[string]string{}
 	for step := 0; step < maxAgentSteps; step++ {
@@ -201,7 +208,7 @@ func (c *Client) Ask(ctx context.Context, request Request) (string, error) {
 			calls = parseTextToolCalls(choice.Message.Content, step)
 		}
 		if len(calls) == 0 {
-			answer := cleanAnswer(choice.Message.Content)
+			answer := formatAnswer(choice.Message.Content)
 			if answer == "" {
 				return "", errors.New("LLM returned an empty answer")
 			}
@@ -249,7 +256,7 @@ func (c *Client) Ask(ctx context.Context, request Request) (string, error) {
 		}
 		return "", err
 	}
-	answer := cleanAnswer(response.Choices[0].Message.Content)
+	answer := formatAnswer(response.Choices[0].Message.Content)
 	if answer == "" {
 		return "", errors.New("LLM returned an empty final answer")
 	}
@@ -312,6 +319,9 @@ func (c *Client) saveHistory(chatID int64, user, assistant string) {
 		history = history[len(history)-maximum:]
 	}
 	c.history[chatID] = history
+	if err := c.persistHistoryLocked(); err != nil {
+		log.Printf("[llm] could not persist history: %v", err)
+	}
 }
 
 func currentTimeTool() map[string]any {
@@ -337,6 +347,48 @@ func webSearchTool() map[string]any {
 			},
 		},
 	}
+}
+
+func openRouterWebSearchTool(maximum int) map[string]any {
+	if maximum < 1 {
+		maximum = 5
+	}
+	return map[string]any{
+		"type": "openrouter:web_search",
+		"parameters": map[string]any{
+			"engine": "perplexity", "max_results": maximum,
+			"max_total_results": maximum, "max_uses": 1,
+		},
+	}
+}
+
+func (c *Client) requestTools() []map[string]any {
+	if c.nativePerplexitySearch() {
+		return nil
+	}
+	tools := []map[string]any{currentTimeTool()}
+	if !c.cfg.LLMWebSearch {
+		return tools
+	}
+	if c.usesOpenRouter() {
+		return append(tools, openRouterWebSearchTool(c.cfg.LLMWebSearchResults))
+	}
+	return append(tools, webSearchTool())
+}
+
+func (c *Client) webSearchAvailable() bool {
+	return c.cfg.LLMWebSearch || c.nativePerplexitySearch()
+}
+
+func (c *Client) nativePerplexitySearch() bool {
+	baseURL := strings.ToLower(c.cfg.LLMBaseURL)
+	model := strings.ToLower(strings.TrimSpace(c.cfg.LLMModel))
+	return strings.Contains(baseURL, "api.perplexity.ai") ||
+		(c.usesOpenRouter() && strings.HasPrefix(model, "perplexity/"))
+}
+
+func (c *Client) usesOpenRouter() bool {
+	return strings.Contains(strings.ToLower(c.cfg.LLMBaseURL), "openrouter.ai")
 }
 
 func currentTime(timezone string) string {
@@ -399,6 +451,8 @@ var (
 	argumentPattern     = regexp.MustCompile(`(?is)<arg_key>\s*([^<]+?)\s*</arg_key>\s*<arg_value>\s*(.*?)\s*</arg_value>`)
 	thinkingPattern     = regexp.MustCompile(`(?is)<(?:analysis|think)>.*?</(?:analysis|think)>`)
 	controlPattern      = regexp.MustCompile(`(?i)<\|(?:channel|im_start|im_end|end|eot|assistant|user|system)\|>|</?(?:analysis|think)>`)
+	repeatedAsterisks   = regexp.MustCompile(`\*{2,}`)
+	truncatedKaomoji    = regexp.MustCompile(`>[wWoOvV/^_.-]{1,8}$`)
 )
 
 func parseTextToolCalls(content string, step int) []toolCall {
@@ -423,7 +477,7 @@ func parseTextToolCalls(content string, step int) []toolCall {
 	return result
 }
 
-func cleanAnswer(value string) string {
+func formatAnswer(value string) string {
 	lower := strings.ToLower(value)
 	for _, marker := range []string{"<|channel|>final", "<channel|>final"} {
 		if index := strings.LastIndex(lower, marker); index >= 0 {
@@ -438,9 +492,9 @@ func cleanAnswer(value string) string {
 	}
 	value = controlPattern.ReplaceAllString(value, "")
 	value = strings.TrimSpace(value)
-	runes := []rune(value)
-	if len(runes) > 4000 {
-		value = string(runes[:4000])
+	value = repeatedAsterisks.ReplaceAllString(value, "*")
+	if truncatedKaomoji.MatchString(value) {
+		value += "<"
 	}
 	return value
 }

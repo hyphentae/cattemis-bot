@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 .cattemis-allowed-links.json
+.cattemis-llm-history.json
 
 __pycache__/
 *.py[cod]

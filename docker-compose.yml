@@ -47,6 +47,7 @@ services:
     env_file: .env
     environment:
       ALLOWED_LINKS_FILE: /app/data/allowed-links.json
+      LLM_HISTORY_FILE: /app/data/llm-history.json
       TELEGRAM_WEBAPP_URL_FILE: /tunnel/url.txt
     extra_hosts:
       - "host.docker.internal:host-gateway"
