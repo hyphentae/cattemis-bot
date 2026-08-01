@@ -90,6 +90,11 @@ type PhotoSize struct {
 	FileSize     int64  `json:"file_size,omitempty"`
 }
 
+type UserProfilePhotos struct {
+	TotalCount int           `json:"total_count"`
+	Photos     [][]PhotoSize `json:"photos"`
+}
+
 type Video struct {
 	FileID       string     `json:"file_id"`
 	FileUniqueID string     `json:"file_unique_id,omitempty"`

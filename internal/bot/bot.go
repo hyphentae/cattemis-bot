@@ -47,6 +47,8 @@ type Bot struct {
 	checkersMu      sync.Mutex
 	checkers        map[int64]*checkersGame
 	checkersPending map[int64][2]int64
+	wordleMu        sync.Mutex
+	wordleGames     map[wordleKey]*wordleGame
 }
 
 func New(cfg config.Config) (*Bot, error) {
@@ -60,6 +62,7 @@ func New(cfg config.Config) (*Bot, error) {
 		adminCache: make(map[adminKey]adminEntry),
 		tttGames:   make(map[int64]*ticTacToeGame), tttPending: make(map[int64][2]int64),
 		checkers: make(map[int64]*checkersGame), checkersPending: make(map[int64][2]int64),
+		wordleGames: make(map[wordleKey]*wordleGame),
 	}, nil
 }
 
@@ -76,6 +79,7 @@ func (b *Bot) Run(ctx context.Context) error {
 		{"command": "games", "description": "выбрать HTML5-игру"},
 		{"command": "ttt", "description": "крестики-нолики в чате"},
 		{"command": "checkers", "description": "шашки в чате"},
+		{"command": "wordle", "description": "английское слово дня в чате"},
 		{"command": "donate", "description": "поддержать бота"},
 		{"command": "stats", "description": "статистика"},
 		{"command": "reset", "description": "очистить память LLM"},
@@ -184,6 +188,8 @@ func (b *Bot) handleMessage(ctx context.Context, message *telegram.Message) erro
 			return b.startTicTacToe(ctx, message)
 		case "checkers":
 			return b.startCheckers(ctx, message)
+		case "wordle":
+			return b.startWordle(ctx, message)
 		default:
 			return nil
 		}
@@ -195,6 +201,9 @@ func (b *Bot) handleMessage(ctx context.Context, message *telegram.Message) erro
 			return err
 		}
 		return nil
+	}
+	if handled, err := b.handleWordleGuess(ctx, message, text); handled {
+		return err
 	}
 	return b.handleLLM(ctx, message)
 }

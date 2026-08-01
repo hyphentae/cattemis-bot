@@ -50,6 +50,11 @@ The `/ttt` and `/checkers` commands also run games directly through Telegram
 inline keyboards. Reply to another user's message with the command to challenge
 that user.
 
+`/wordle` starts a five-letter English Wordle directly in chat, without the Mini
+App. Everyone gets the same daily word, while attempts are tracked per user.
+The bot sends a PNG progress card after every guess and adds the player's avatar
+to the final card.
+
 ## Technology
 
 - Go 1.24 — Telegram bot, downloaders, LLM client, Mini App API, rooms, and
@@ -145,6 +150,7 @@ is ignored by Git; never publish bot tokens or API keys.
 | `/games` | open the HTML5 game picker |
 | `/ttt` | play tic-tac-toe in Telegram messages |
 | `/checkers` | play checkers in Telegram messages |
+| `/wordle` | play a five-letter English Wordle in Telegram messages |
 | `/donate` | support the bot through Telegram Stars or Ko-fi |
 | `/paysupport` | show payment support information |
 | `/ping` | check whether the bot is available |

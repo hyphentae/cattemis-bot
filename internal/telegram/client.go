@@ -239,6 +239,17 @@ func (c *Client) GetFile(ctx context.Context, fileID string) (File, error) {
 	return result, err
 }
 
+func (c *Client) GetUserProfilePhotos(ctx context.Context, userID int64, limit int) (UserProfilePhotos, error) {
+	if limit <= 0 {
+		limit = 1
+	}
+	var result UserProfilePhotos
+	err := c.call(ctx, "getUserProfilePhotos", map[string]any{
+		"user_id": userID, "offset": 0, "limit": limit,
+	}, &result)
+	return result, err
+}
+
 func (c *Client) DownloadFile(ctx context.Context, fileID string, maxBytes int64) ([]byte, string, error) {
 	file, err := c.GetFile(ctx, fileID)
 	if err != nil {
