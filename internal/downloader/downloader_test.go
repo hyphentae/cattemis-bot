@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"errors"
 	"net/url"
 	"slices"
 	"strings"
@@ -69,6 +70,47 @@ func TestYouTubeYTDLPOptionsAlwaysProduceMP4(t *testing.T) {
 	h264Index := strings.Index(format, "[vcodec^=avc1]")
 	if av1Index < 0 || hevcIndex < 0 || h264Index < 0 || !(av1Index < hevcIndex && hevcIndex < h264Index) {
 		t.Fatalf("expected codec preference AV1, HEVC, H.264, got %q", format)
+	}
+}
+
+func TestYouTubeYTDLPFormatsFallBackToLowerResolutions(t *testing.T) {
+	value, err := url.Parse("https://www.youtube.com/watch?v=abcdefghijk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	formats := ytdlpMediaFormats(value)
+	wantHeights := []string{"1080", "720", "480", "360", "240", "144"}
+	if len(formats) != len(wantHeights) {
+		t.Fatalf("expected %d YouTube format attempts, got %d", len(wantHeights), len(formats))
+	}
+	for index, height := range wantHeights {
+		if !strings.Contains(formats[index], "[height<="+height+"]") {
+			t.Fatalf("format attempt %d must be limited to %sp: %q", index, height, formats[index])
+		}
+	}
+}
+
+func TestYouTubeFormatFallbackOnlyHandlesFormatAndSizeFailures(t *testing.T) {
+	for _, err := range []error{
+		errYTDLPNoMedia,
+		errYTDLPMediaTooLarge,
+		errors.New("yt-dlp failed: requested format is not available"),
+	} {
+		if !youtubeFormatFallbackError(err) {
+			t.Fatalf("expected fallback for %v", err)
+		}
+	}
+	if youtubeFormatFallbackError(errors.New("yt-dlp failed: video unavailable")) {
+		t.Fatal("permanent source errors must not trigger every format fallback")
+	}
+}
+
+func TestYTDLPSizeLimitOutput(t *testing.T) {
+	if !ytdlpSizeLimitOutput("File is larger than max-filesize. Aborting") {
+		t.Fatal("expected yt-dlp max-filesize output to be recognized")
+	}
+	if ytdlpSizeLimitOutput("HTTP Error 403: Forbidden") {
+		t.Fatal("unrelated errors must not be classified as size limits")
 	}
 }
 

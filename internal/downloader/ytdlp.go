@@ -19,6 +19,29 @@ func (d *Downloader) downloadYTDLP(ctx context.Context, value *url.URL) (Result,
 }
 
 func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.URL, allowPlaylist bool) (Result, error) {
+	formats := ytdlpMediaFormats(value)
+	var lastErr error
+	var sizeErr error
+	for index, format := range formats {
+		result, err := d.downloadYTDLPAttempt(ctx, value, allowPlaylist, format)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if errors.Is(err, errYTDLPMediaTooLarge) {
+			sizeErr = err
+		}
+		if index == len(formats)-1 || !IsYouTube(value) || ctx.Err() != nil || !youtubeFormatFallbackError(err) {
+			break
+		}
+	}
+	if sizeErr != nil && errors.Is(lastErr, errYTDLPNoMedia) {
+		return Result{}, sizeErr
+	}
+	return Result{}, lastErr
+}
+
+func (d *Downloader) downloadYTDLPAttempt(ctx context.Context, value *url.URL, allowPlaylist bool, format string) (Result, error) {
 	isYouTube := IsYouTube(value)
 	directory, err := os.MkdirTemp("", "cattemis-ytdlp-*")
 	if err != nil {
@@ -28,12 +51,12 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 
 	output := filepath.Join(directory, "%(id)s.%(ext)s")
 	arguments := []string{
-		"--no-progress", "--newline",
+		"--ignore-config", "--no-progress", "--newline",
 		"--max-filesize", strconv.FormatInt(d.cfg.MaxFileSize, 10),
 		"--write-info-json",
 		"--output", output,
 	}
-	arguments = append(arguments, ytdlpMediaOptions(value)...)
+	arguments = append(arguments, ytdlpMediaOptionsForFormat(value, format)...)
 	if allowPlaylist {
 		arguments = append(arguments, "--yes-playlist", "--playlist-end", strconv.Itoa(d.cfg.MaxMediaItems))
 	} else {
@@ -50,7 +73,11 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 	command.Env = append(os.Environ(), "PYTHONUNBUFFERED=1")
 	outputData, err := command.CombinedOutput()
 	if err != nil {
-		return Result{}, fmt.Errorf("yt-dlp failed: %w: %s", err, tail(string(outputData), 3000))
+		detail := tail(string(outputData), 3000)
+		if ytdlpSizeLimitOutput(detail) {
+			return Result{}, fmt.Errorf("%w: %s", errYTDLPMediaTooLarge, detail)
+		}
+		return Result{}, fmt.Errorf("yt-dlp failed: %w: %s", err, detail)
 	}
 	entries, err := os.ReadDir(directory)
 	if err != nil {
@@ -59,6 +86,7 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 	items := make([]Media, 0)
 	caption := ""
+	oversizedMedia := false
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -78,7 +106,11 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 			continue
 		}
 		info, err := entry.Info()
-		if err != nil || info.Size() > d.cfg.MaxFileSize {
+		if err != nil {
+			continue
+		}
+		if info.Size() > d.cfg.MaxFileSize {
+			oversizedMedia = true
 			continue
 		}
 		data, err := os.ReadFile(fullPath)
@@ -88,7 +120,10 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 		items = append(items, Media{Kind: kind, Name: entry.Name(), MIME: mimeForName(entry.Name()), Data: data})
 	}
 	if len(items) == 0 {
-		return Result{}, errors.New("yt-dlp produced no supported media")
+		if oversizedMedia || ytdlpSizeLimitOutput(string(outputData)) {
+			return Result{}, errYTDLPMediaTooLarge
+		}
+		return Result{}, errYTDLPNoMedia
 	}
 	source := "ytdlp"
 	if isYouTube {
@@ -102,14 +137,58 @@ func (d *Downloader) downloadYTDLPWithOptions(ctx context.Context, value *url.UR
 }
 
 func ytdlpMediaOptions(value *url.URL) []string {
-	format := "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
+	return ytdlpMediaOptionsForFormat(value, ytdlpMediaFormats(value)[0])
+}
+
+func ytdlpMediaOptionsForFormat(value *url.URL, format string) []string {
 	options := []string{"--merge-output-format", "mp4"}
 	if IsYouTube(value) {
-		format = "bestvideo[ext=mp4][vcodec^=av01][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=hev1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=hvc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4][vcodec^=avc1][height<=1080]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
 		options = append(options, "--js-runtimes", "deno", "--recode-video", "mp4")
 	}
 	return append(options, "--format", format)
 }
+
+func ytdlpMediaFormats(value *url.URL) []string {
+	if !IsYouTube(value) {
+		return []string{"bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"}
+	}
+	heights := []int{1080, 720, 480, 360, 240, 144}
+	formats := make([]string, 0, len(heights))
+	for _, height := range heights {
+		formats = append(formats, youtubeMediaFormat(height))
+	}
+	return formats
+}
+
+func youtubeMediaFormat(height int) string {
+	limit := strconv.Itoa(height)
+	return "bestvideo[ext=mp4][vcodec^=av01][height<=" + limit + "]+bestaudio[ext=m4a]/" +
+		"bestvideo[ext=mp4][vcodec^=hev1][height<=" + limit + "]+bestaudio[ext=m4a]/" +
+		"bestvideo[ext=mp4][vcodec^=hvc1][height<=" + limit + "]+bestaudio[ext=m4a]/" +
+		"bestvideo[ext=mp4][vcodec^=avc1][height<=" + limit + "]+bestaudio[ext=m4a]/" +
+		"best[ext=mp4][vcodec^=avc1][height<=" + limit + "]/" +
+		"bestvideo[height<=" + limit + "]+bestaudio/best[height<=" + limit + "]/best"
+}
+
+func youtubeFormatFallbackError(err error) bool {
+	if errors.Is(err, errYTDLPMediaTooLarge) || errors.Is(err, errYTDLPNoMedia) {
+		return true
+	}
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "requested format is not available")
+}
+
+func ytdlpSizeLimitOutput(value string) bool {
+	text := strings.ToLower(value)
+	return strings.Contains(text, "max-filesize") ||
+		strings.Contains(text, "larger than max") ||
+		strings.Contains(text, "exceeds the maximum")
+}
+
+var (
+	errYTDLPNoMedia       = errors.New("yt-dlp produced no supported media")
+	errYTDLPMediaTooLarge = errors.New("yt-dlp media is too large")
+)
 
 func ytdlpCaption(filename string, titleOnly bool) string {
 	data, err := os.ReadFile(filename)
